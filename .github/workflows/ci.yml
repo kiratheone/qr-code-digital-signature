@@ -1,0 +1,451 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  GO_VERSION: '1.22'
+  NODE_VERSION: '20'
+  POSTGRES_VERSION: '16'
+
+jobs:
+  # Backend Tests
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: digital_signature_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: go mod download
+
+    - name: Run unit tests
+      working-directory: ./backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: password
+        DB_NAME: digital_signature_test
+        DB_SSLMODE: disable
+      run: |
+        go test -v -race -coverprofile=coverage.out ./...
+        go tool cover -html=coverage.out -o coverage.html
+
+    - name: Run benchmarks
+      working-directory: ./backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: password
+        DB_NAME: digital_signature_test
+        DB_SSLMODE: disable
+      run: |
+        go test -bench=. -benchmem ./internal/infrastructure/services/
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.out
+        flags: backend
+        name: backend-coverage
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: backend-test-results
+        path: |
+          backend/coverage.out
+          backend/coverage.html
+
+  # Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run linting
+      working-directory: ./frontend
+      run: npm run lint
+
+    - name: Run type checking
+      working-directory: ./frontend
+      run: npm run type-check
+
+    - name: Run unit tests
+      working-directory: ./frontend
+      run: npm run test -- --coverage --watchAll=false
+
+    - name: Build application
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: frontend-test-results
+        path: |
+          frontend/coverage/
+          frontend/.next/
+
+  # Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: digital_signature_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: go mod download
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build backend
+      working-directory: ./backend
+      run: go build -o main .
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run integration tests
+      working-directory: ./backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: password
+        DB_NAME: digital_signature_test
+        DB_SSLMODE: disable
+        PRIVATE_KEY: test-private-key
+        PUBLIC_KEY: test-public-key
+        JWT_SECRET: test-jwt-secret
+      run: |
+        go test -v ./internal/infrastructure/server/integration_test.go
+
+  # End-to-End Tests
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: digital_signature
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: go mod download
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build and start backend
+      working-directory: ./backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: password
+        DB_NAME: digital_signature
+        DB_SSLMODE: disable
+        PRIVATE_KEY: test-private-key
+        PUBLIC_KEY: test-public-key
+        JWT_SECRET: test-jwt-secret
+        PORT: 8000
+      run: |
+        go build -o main .
+        ./main &
+        sleep 10
+
+    - name: Build and start frontend
+      working-directory: ./frontend
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+      run: |
+        npm run build
+        npm start &
+        sleep 10
+
+    - name: Run E2E tests
+      working-directory: ./backend
+      env:
+        API_URL: http://localhost:8000
+      run: |
+        go build -o test_e2e test_e2e.go
+        ./test_e2e
+
+  # Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: digital_signature_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: go mod download
+
+    - name: Run performance tests
+      working-directory: ./backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: password
+        DB_NAME: digital_signature_test
+        DB_SSLMODE: disable
+      run: |
+        chmod +x scripts/run_performance_tests.sh
+        ./scripts/run_performance_tests.sh benchmarks
+
+    - name: Archive performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: |
+          backend/performance_report_*.txt
+
+  # Security Scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Gosec Security Scanner
+      uses: securecodewarrior/github-action-gosec@master
+      with:
+        args: '-fmt sarif -out gosec-results.sarif ./backend/...'
+
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: gosec-results.sarif
+
+    - name: Run npm audit
+      working-directory: ./frontend
+      run: |
+        npm audit --audit-level moderate
+
+  # Docker Build Test
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build backend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: false
+        tags: digital-signature-backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build frontend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: false
+        tags: digital-signature-frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker Compose
+      run: |
+        docker-compose -f docker-compose.yml config
+
+  # Deployment (only on main branch)
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [e2e-tests, performance-tests, security-scan, docker-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your deployment commands here
+        # For example: kubectl apply -f k8s/ or docker-compose up -d
+
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests..."
+        # Add smoke test commands here
+
+    - name: Notify deployment
+      run: |
+        echo "Deployment completed successfully!"
+        # Add notification logic here (Slack, email, etc.)
+
+  # Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+
+    steps:
+    - name: Clean up artifacts
+      run: |
+        echo "Cleaning up temporary artifacts..."
+        # Add cleanup commands if needed

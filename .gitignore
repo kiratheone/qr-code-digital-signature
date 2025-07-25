@@ -1,0 +1,57 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# IDE
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Build artifacts
+dist/
+build/
+
+# Secrets and certificates
+*.pem
+*.key
+*.crt
+secrets/*.key
+secrets/*.pem
+secrets/*.crt
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock

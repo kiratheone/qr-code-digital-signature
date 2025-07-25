@@ -1,0 +1,82 @@
+# Multi-stage build for production optimization
+FROM node:20-alpine AS base
+
+# Install security updates and required packages
+RUN apk update && apk upgrade && \
+    apk add --no-cache curl dumb-init tini && \
+    rm -rf /var/cache/apk/*
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+WORKDIR /app
+
+# Dependencies stage - production only
+FROM base AS dependencies
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies with security audit
+RUN npm ci --only=production --frozen-lockfile --audit --no-fund && \
+    npm cache clean --force
+
+# Build dependencies stage - all dependencies
+FROM base AS build-deps
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci --frozen-lockfile --no-fund && \
+    npm cache clean --force
+
+# Build stage
+FROM base AS builder
+
+# Copy dependencies from build-deps stage
+COPY --from=build-deps /app/node_modules ./node_modules
+
+# Copy source code
+COPY . .
+
+# Build the application with optimizations
+ARG NODE_ENV=production
+ARG NEXT_TELEMETRY_DISABLED=1
+ARG BUILD_ID
+ARG VERSION
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build with optimizations
+RUN npm run build && \
+    npm prune --production
+
+# Production stage - distroless for better security
+FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runner
+
+# Copy built application and dependencies
+COPY --from=dependencies --chown=nonroot:nonroot /app/node_modules ./node_modules
+COPY --from=builder --chown=nonroot:nonroot /app/public ./public
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone ./
+COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
+COPY --from=builder --chown=nonroot:nonroot /app/package.json ./package.json
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables for production
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Add labels for better container management
+LABEL maintainer="Digital Signature System" \
+      version="${VERSION}" \
+      description="Digital Signature System Frontend"
+
+# Start the application
+CMD ["server.js"]

@@ -1,0 +1,98 @@
+# Multi-stage build for production optimization
+FROM golang:1.22-alpine AS base
+
+# Install build dependencies and security updates
+RUN apk update && apk upgrade && \
+    apk add --no-cache git ca-certificates tzdata curl upx && \
+    rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Dependencies stage
+FROM base AS dependencies
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download dependencies with verification and caching
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
+
+# Build stage
+FROM base AS builder
+
+# Copy dependencies cache
+COPY --from=dependencies /go/pkg /go/pkg
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Copy source code
+COPY . .
+
+# Build the application with optimizations and version info
+ARG VERSION=unknown
+ARG BUILD_TIME=unknown
+ARG GIT_COMMIT=unknown
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+# Build main application
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags="-w -s -extldflags '-static' \
+    -X main.Version=${VERSION} \
+    -X main.BuildTime=${BUILD_TIME} \
+    -X main.GitCommit=${GIT_COMMIT}" \
+    -a -installsuffix cgo \
+    -o main ./cmd/main.go
+
+# Build key generation utility
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags="-w -s -extldflags '-static'" \
+    -a -installsuffix cgo \
+    -o keygen ./cmd/keygen/main.go
+
+# Create a minimal health check binary
+RUN printf 'package main\nimport(\n"fmt"\n"net/http"\n"os"\n"time"\n)\nfunc main(){\nclient:=&http.Client{Timeout:5*time.Second}\nresp,err:=client.Get("http://localhost:8000/api/health")\nif err!=nil||resp.StatusCode!=200{fmt.Printf("Health check failed: %%v\\n",err);os.Exit(1)}\nfmt.Println("healthy")\n}' > healthcheck.go && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+    -ldflags="-w -s" -o healthcheck healthcheck.go
+
+# Compress binaries
+RUN upx --best --lzma main healthcheck keygen
+
+# Production stage - use distroless for better security
+FROM gcr.io/distroless/static-debian12:nonroot
+
+# Copy CA certificates and timezone data
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
+# Copy the binaries from builder stage
+COPY --from=builder /app/main /main
+COPY --from=builder /app/healthcheck /healthcheck
+COPY --from=builder /app/keygen /keygen
+
+# Expose ports
+EXPOSE 8000 9090
+
+# Health check using dedicated binary
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD ["/healthcheck"]
+
+# Set environment variables
+ENV TZ=UTC
+ENV GIN_MODE=release
+ENV GOGC=100
+ENV GOMEMLIMIT=512MiB
+
+# Add labels for better container management
+LABEL maintainer="Digital Signature System" \
+      version="${VERSION}" \
+      description="Digital Signature System Backend API"
+
+# Command to run
+ENTRYPOINT ["/main"]
