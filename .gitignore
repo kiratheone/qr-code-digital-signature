@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.prod
 
 # Docker
 .docker/
@@ -38,9 +39,12 @@ build/
 *.pem
 *.key
 *.crt
-secrets/*.key
-secrets/*.pem
-secrets/*.crt
+secrets/
+secrets/*
+secrets/**/*
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
 
 # Backup files
 *.bak
