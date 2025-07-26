@@ -108,24 +108,6 @@ The system follows Clean Architecture principles with clear separation of concer
 
 ## Testing
 
-### CI Simulation
-
-To test your changes locally before pushing, use the CI simulation script:
-
-```bash
-# Run full CI pipeline simulation
-./scripts/simulate-ci.sh
-
-# Run only backend tests
-./scripts/simulate-ci.sh --only-backend
-
-# Run only frontend tests
-./scripts/simulate-ci.sh --only-frontend
-
-# Skip slower E2E tests
-./scripts/simulate-ci.sh --skip-e2e
-```
-
 ### Manual Testing
 
 #### Backend Tests
@@ -153,7 +135,7 @@ For detailed troubleshooting, see [CI_TROUBLESHOOTING.md](docs/CI_TROUBLESHOOTIN
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Run `./scripts/simulate-ci.sh` to test locally
+5. Test your changes locally
 6. Submit a pull request
 
 ## License

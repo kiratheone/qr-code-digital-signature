@@ -4,23 +4,20 @@ This guide helps you debug failing backend and frontend tests in your CI pipelin
 
 ## Quick Start
 
-Run the CI simulation script to test locally:
+Test your changes locally by running the individual test commands:
 
 ```bash
-# Run all tests (full CI simulation)
-./scripts/simulate-ci.sh
+# Backend tests
+cd backend && go test -v ./...
 
-# Run only backend tests
-./scripts/simulate-ci.sh --only-backend
+# Frontend tests
+cd frontend && npm test
 
-# Run only frontend tests
-./scripts/simulate-ci.sh --only-frontend
+# End-to-end tests
+cd e2e && npm test
 
-# Skip end-to-end tests (faster)
-./scripts/simulate-ci.sh --skip-e2e
-
-# Skip Docker tests
-./scripts/simulate-ci.sh --skip-docker
+# Docker tests
+docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
 ```
 
 ## Common Issues and Solutions
