@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiError } from './useApiError';
-import { 
-  useUploadDocument, 
-  useDeleteDocument 
+import {
+  useDocuments,
+  useDocument,
+  useUploadDocument,
+  useDeleteDocument
 } from '@/api/document';
 import { CacheManager, NetworkManager } from '@/api/apiUtils';
 import { DocumentUploadRequest } from '@/types/document';
@@ -14,18 +16,18 @@ export function useDocumentOperations() {
   const { error, handleError, clearError } = useApiError();
   const queryClient = useQueryClient();
   const cacheManager = useMemo(() => new CacheManager(queryClient), [queryClient]);
-  
+
   // Get document upload mutation
   const uploadMutation = useUploadDocument();
-  
+
   // Get document delete mutation
   const deleteMutation = useDeleteDocument();
-  
+
   // Monitor network status
   useEffect(() => {
     const networkManager = NetworkManager.getInstance();
     setIsOffline(!networkManager.getStatus());
-    
+
     const unsubscribe = networkManager.onStatusChange((online) => {
       setIsOffline(!online);
       if (online) {
@@ -37,15 +39,15 @@ export function useDocumentOperations() {
         });
       }
     });
-    
+
     return unsubscribe;
   }, [queryClient]);
-  
+
   // Upload document with error handling
   const uploadDocument = useCallback(async (data: DocumentUploadRequest) => {
     clearError();
     setIsLoading(true);
-    
+
     try {
       const result = await uploadMutation.mutateAsync(data);
       setIsLoading(false);
@@ -56,12 +58,12 @@ export function useDocumentOperations() {
       throw err;
     }
   }, [uploadMutation, handleError, clearError]);
-  
+
   // Delete document with error handling
   const deleteDocument = useCallback(async (id: string) => {
     clearError();
     setIsLoading(true);
-    
+
     try {
       const result = await deleteMutation.mutateAsync(id);
       setIsLoading(false);
@@ -72,25 +74,11 @@ export function useDocumentOperations() {
       throw err;
     }
   }, [deleteMutation, handleError, clearError]);
-  
-  // Get documents with pagination and search
-  const getDocuments = useCallback(() => {
-    // Note: This should be called at the component level, not inside a callback
-    // Return a function that can be used to invalidate and refetch
-    return () => {
-      cacheManager.invalidateDocuments();
-    };
-  }, [cacheManager]);
-  
-  // Get a single document by ID
-  const getDocument = useCallback((id: string) => {
-    // Note: This should be called at the component level, not inside a callback
-    // Return a function that can be used to invalidate and refetch
-    return () => {
-      cacheManager.invalidateDocument(id);
-    };
-  }, [cacheManager]);
-  
+
+  // Expose the hooks directly for use in components
+  const useDocumentsHook = useDocuments;
+  const useDocumentHook = useDocument;
+
   // Prefetch documents for better UX
   const prefetchDocuments = useCallback(async (page = 1, limit = 10, search?: string) => {
     try {
@@ -100,7 +88,7 @@ export function useDocumentOperations() {
       console.warn('Failed to prefetch documents:', error);
     }
   }, [cacheManager]);
-  
+
   // Prefetch document details
   const prefetchDocument = useCallback(async (docId: string) => {
     try {
@@ -110,7 +98,7 @@ export function useDocumentOperations() {
       console.warn('Failed to prefetch document:', error);
     }
   }, [cacheManager]);
-  
+
   // Refresh all document data
   const refreshDocuments = useCallback(() => {
     cacheManager.invalidateDocuments();
@@ -119,8 +107,8 @@ export function useDocumentOperations() {
   return {
     uploadDocument,
     deleteDocument,
-    getDocuments,
-    getDocument,
+    useDocuments: useDocumentsHook,
+    useDocument: useDocumentHook,
     prefetchDocuments,
     prefetchDocument,
     refreshDocuments,
