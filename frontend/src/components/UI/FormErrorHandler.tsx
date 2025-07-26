@@ -61,8 +61,7 @@ export function FormErrorHandler({
     }));
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSubmit = useCallback(async (formData: unknown) => {
+  const handleSubmit = useCallback(async (_formData: unknown) => {
     // Prevent duplicate submissions
     if (preventDuplicateSubmission && errorState.lastSubmitTime) {
       const timeSinceLastSubmit = Date.now() - errorState.lastSubmitTime.getTime();
