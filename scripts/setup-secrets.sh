@@ -300,7 +300,7 @@ validate_secrets() {
     
     # Validate RSA public key
     if [ -f "$SECRETS_DIR/public_key.pem" ]; then
-        if ! openssl rsa -in "$SECRETS_DIR/public_key.pem" -pubin -noout >/dev/null 2>&1; then
+        if ! openssl rsa -pubin -in "$SECRETS_DIR/public_key.pem" -text -noout >/dev/null 2>&1; then
             log_error "Invalid RSA public key"
             ((errors++))
         fi
