@@ -270,6 +270,9 @@ validate_secrets() {
         "db_password.txt"
         "redis_password.txt"
         "jwt_secret.txt"
+        "api_key.txt"
+        "session_secret.txt"
+        "encryption_key.txt"
         "private_key.pem"
         "public_key.pem"
     )
@@ -278,18 +281,38 @@ validate_secrets() {
         if [ ! -f "$SECRETS_DIR/$secret" ]; then
             log_error "Missing required secret: $secret"
             ((errors++))
+        else
+            # Check if file is not empty
+            if [ ! -s "$SECRETS_DIR/$secret" ]; then
+                log_error "Secret file is empty: $secret"
+                ((errors++))
+            fi
         fi
     done
     
-    # Validate RSA key pair
-    if [ -f "$SECRETS_DIR/private_key.pem" ] && [ -f "$SECRETS_DIR/public_key.pem" ]; then
+    # Validate RSA private key
+    if [ -f "$SECRETS_DIR/private_key.pem" ]; then
         if ! openssl rsa -in "$SECRETS_DIR/private_key.pem" -check -noout >/dev/null 2>&1; then
             log_error "Invalid RSA private key"
             ((errors++))
         fi
-        
-        if ! openssl rsa -in "$SECRETS_DIR/public_key.pem" -pubin -check -noout >/dev/null 2>&1; then
+    fi
+    
+    # Validate RSA public key
+    if [ -f "$SECRETS_DIR/public_key.pem" ]; then
+        if ! openssl rsa -in "$SECRETS_DIR/public_key.pem" -pubin -noout >/dev/null 2>&1; then
             log_error "Invalid RSA public key"
+            ((errors++))
+        fi
+    fi
+    
+    # Validate that RSA key pair matches (if both exist)
+    if [ -f "$SECRETS_DIR/private_key.pem" ] && [ -f "$SECRETS_DIR/public_key.pem" ]; then
+        local private_modulus=$(openssl rsa -in "$SECRETS_DIR/private_key.pem" -noout -modulus 2>/dev/null)
+        local public_modulus=$(openssl rsa -in "$SECRETS_DIR/public_key.pem" -pubin -noout -modulus 2>/dev/null)
+        
+        if [ "$private_modulus" != "$public_modulus" ]; then
+            log_error "RSA key pair mismatch - private and public keys don't match"
             ((errors++))
         fi
     fi
@@ -298,6 +321,30 @@ validate_secrets() {
     if [ -f "./nginx/ssl/cert.pem" ]; then
         if ! openssl x509 -in ./nginx/ssl/cert.pem -noout -text >/dev/null 2>&1; then
             log_error "Invalid SSL certificate"
+            ((errors++))
+        else
+            # Check if certificate is expired
+            if ! openssl x509 -in ./nginx/ssl/cert.pem -noout -checkend 0 >/dev/null 2>&1; then
+                log_warn "SSL certificate has expired"
+            fi
+        fi
+    fi
+    
+    # Validate SSL private key
+    if [ -f "./nginx/ssl/key.pem" ]; then
+        if ! openssl rsa -in ./nginx/ssl/key.pem -check -noout >/dev/null 2>&1; then
+            log_error "Invalid SSL private key"
+            ((errors++))
+        fi
+    fi
+    
+    # Validate that SSL certificate and key match (if both exist)
+    if [ -f "./nginx/ssl/cert.pem" ] && [ -f "./nginx/ssl/key.pem" ]; then
+        local cert_modulus=$(openssl x509 -in ./nginx/ssl/cert.pem -noout -modulus 2>/dev/null)
+        local key_modulus=$(openssl rsa -in ./nginx/ssl/key.pem -noout -modulus 2>/dev/null)
+        
+        if [ "$cert_modulus" != "$key_modulus" ]; then
+            log_error "SSL certificate and key mismatch"
             ((errors++))
         fi
     fi
