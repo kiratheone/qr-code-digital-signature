@@ -1,6 +1,8 @@
 module digital-signature-system
 
-go 1.19
+go 1.23
+
+toolchain go1.23.6
 
 require (
 	github.com/gin-gonic/gin v1.9.1
