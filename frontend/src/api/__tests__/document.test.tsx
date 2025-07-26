@@ -4,16 +4,6 @@ import { useDocuments, useDocument, useUploadDocument, useDeleteDocument } from 
 import * as client from '../client';
 import { ReactNode } from 'react';
 import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { beforeEach } from 'node:test';
-import { describe } from 'node:test';
-
 // Mock the client module
 jest.mock('../client', () => ({
   get: jest.fn(),
