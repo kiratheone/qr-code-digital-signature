@@ -106,13 +106,55 @@ The system follows Clean Architecture principles with clear separation of concer
 - Input validation and sanitization
 - Audit logging for all operations
 
+## Testing
+
+### CI Simulation
+
+To test your changes locally before pushing, use the CI simulation script:
+
+```bash
+# Run full CI pipeline simulation
+./scripts/simulate-ci.sh
+
+# Run only backend tests
+./scripts/simulate-ci.sh --only-backend
+
+# Run only frontend tests
+./scripts/simulate-ci.sh --only-frontend
+
+# Skip slower E2E tests
+./scripts/simulate-ci.sh --skip-e2e
+```
+
+### Manual Testing
+
+#### Backend Tests
+```bash
+cd backend
+go test -v ./...
+go test -race ./...
+go test -bench=. ./...
+```
+
+#### Frontend Tests
+```bash
+cd frontend
+npm test
+npm run lint
+npm run type-check
+npm run build
+```
+
+For detailed troubleshooting, see [CI_TROUBLESHOOTING.md](docs/CI_TROUBLESHOOTING.md).
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Submit a pull request
+5. Run `./scripts/simulate-ci.sh` to test locally
+6. Submit a pull request
 
 ## License
 
