@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDocuments, useDocument, useUploadDocument, useDeleteDocument } from '../document';
 import * as client from '../client';
 import { ReactNode } from 'react';
-import { it } from 'node:test';
 // Mock the client module
 jest.mock('../client', () => ({
   get: jest.fn(),
