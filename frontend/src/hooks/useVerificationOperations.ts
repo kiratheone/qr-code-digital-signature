@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiError } from './useApiError';
-import { useVerificationInfo, useVerifyDocument } from '@/api/verification';
+import { useVerifyDocument } from '@/api/verification';
 import { CacheManager, NetworkManager } from '@/api/apiUtils';
 import { VerificationResponse } from '@/types/verification';
 
@@ -10,7 +10,7 @@ export function useVerificationOperations() {
   const [isOffline, setIsOffline] = useState(false);
   const { error, handleError, clearError } = useApiError();
   const queryClient = useQueryClient();
-  const cacheManager = new CacheManager(queryClient);
+  const cacheManager = useMemo(() => new CacheManager(queryClient), [queryClient]);
   
   // Get verification mutation
   const verifyMutation = useVerifyDocument();
@@ -29,8 +29,12 @@ export function useVerificationOperations() {
   
   // Get verification info with error handling
   const getVerificationInfo = useCallback((docId: string) => {
-    return useVerificationInfo(docId);
-  }, []);
+    // Note: This should be called at the component level, not inside a callback
+    // Return a function that can be used to invalidate and refetch
+    return () => {
+      cacheManager.invalidateVerification(docId);
+    };
+  }, [cacheManager]);
   
   // Verify document with error handling
   const verifyDocument = useCallback(async (docId: string, file: File): Promise<VerificationResponse> => {

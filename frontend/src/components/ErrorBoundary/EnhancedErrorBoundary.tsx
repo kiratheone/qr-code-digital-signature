@@ -3,7 +3,7 @@
 import React, { Component, ReactNode } from 'react';
 import { ErrorFallback, ErrorFallbackProps } from './ErrorFallback';
 import { ErrorRecovery } from './ErrorRecovery';
-import { useNotificationHelpers } from '@/components/UI/Notifications';
+
 
 interface ErrorInfo {
   componentStack: string;
@@ -314,10 +314,10 @@ export function withEnhancedErrorBoundary<P extends object>(
 
 // Hook for triggering error boundary from within components
 export function useErrorHandler() {
-  return (error: Error, context?: Record<string, any>) => {
+  return (error: Error, context?: Record<string, unknown>) => {
     // Add context to error if provided
     if (context) {
-      (error as any).context = context;
+      (error as Error & { context?: Record<string, unknown> }).context = context;
     }
     throw error;
   };

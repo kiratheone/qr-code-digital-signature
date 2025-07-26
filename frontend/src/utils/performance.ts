@@ -89,13 +89,14 @@ class PerformanceMonitor {
 
     // First Input Delay
     this.observePerformanceEntry('first-input', (entry) => {
-      this.webVitals.FID = (entry as any).processingStart - entry.startTime;
+      this.webVitals.FID = (entry as PerformanceEntry & { processingStart: number }).processingStart - entry.startTime;
     });
 
     // Cumulative Layout Shift
     this.observePerformanceEntry('layout-shift', (entry) => {
-      if (!(entry as any).hadRecentInput) {
-        this.webVitals.CLS = (this.webVitals.CLS || 0) + (entry as any).value;
+      const layoutShiftEntry = entry as PerformanceEntry & { hadRecentInput: boolean; value: number };
+      if (!layoutShiftEntry.hadRecentInput) {
+        this.webVitals.CLS = (this.webVitals.CLS || 0) + layoutShiftEntry.value;
       }
     });
 

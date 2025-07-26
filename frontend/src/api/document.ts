@@ -85,7 +85,7 @@ export function useUploadDocument() {
   
   return useMutation({
     mutationFn: uploadDocument,
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       // Invalidate documents query to refetch the list
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       
@@ -95,7 +95,7 @@ export function useUploadDocument() {
       // Update documents list cache if possible
       queryClient.setQueriesData(
         { queryKey: ['documents'] },
-        (oldData: any) => {
+        (oldData: DocumentListResponse | undefined) => {
           if (!oldData) return oldData;
           
           return {
@@ -129,12 +129,12 @@ export function useDeleteDocument() {
       // Optimistically remove the document from cache
       queryClient.setQueriesData(
         { queryKey: ['documents'] },
-        (oldData: any) => {
+        (oldData: DocumentListResponse | undefined) => {
           if (!oldData) return oldData;
           
           return {
             ...oldData,
-            documents: oldData.documents.filter((doc: any) => doc.id !== documentId),
+            documents: oldData.documents.filter((doc: Document) => doc.id !== documentId),
             total: Math.max(0, oldData.total - 1),
           };
         }

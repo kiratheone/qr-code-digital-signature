@@ -1,11 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DocumentVerificationUpload from '../DocumentVerificationUpload';
 
 // Mock react-dropzone
 jest.mock('react-dropzone', () => ({
-  useDropzone: ({ onDrop, accept, maxSize, multiple }: any) => ({
+  useDropzone: () => ({
     getRootProps: () => ({
       'data-testid': 'dropzone',
     }),
@@ -47,8 +47,8 @@ describe('DocumentVerificationUpload', () => {
     
     // Simulate file selection by updating component state
     // Since we're mocking react-dropzone, we need to simulate the file selection differently
-    const fileInput = screen.getByTestId('file-input');
-    const file = new File(['dummy content'], 'test.pdf', { type: 'application/pdf' });
+    screen.getByTestId('file-input');
+    new File(['dummy content'], 'test.pdf', { type: 'application/pdf' });
     
     // This is a simplified test - in a real scenario, we'd need to trigger the onDrop callback
     // For now, we'll test that the button exists and can be interacted with
@@ -86,7 +86,7 @@ describe('DocumentVerificationUpload', () => {
   });
   
   it('calls onUpload when verify button is clicked with selected file', async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     render(<DocumentVerificationUpload onUpload={mockOnUpload} />);
     
     // Since we're mocking react-dropzone, we can't easily simulate file drop

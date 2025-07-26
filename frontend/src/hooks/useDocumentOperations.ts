@@ -1,21 +1,19 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiError } from './useApiError';
 import { 
-  useDocuments, 
-  useDocument, 
   useUploadDocument, 
   useDeleteDocument 
 } from '@/api/document';
 import { CacheManager, NetworkManager } from '@/api/apiUtils';
-import { Document, DocumentUploadRequest } from '@/types/document';
+import { DocumentUploadRequest } from '@/types/document';
 
 export function useDocumentOperations() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const { error, handleError, clearError } = useApiError();
   const queryClient = useQueryClient();
-  const cacheManager = new CacheManager(queryClient);
+  const cacheManager = useMemo(() => new CacheManager(queryClient), [queryClient]);
   
   // Get document upload mutation
   const uploadMutation = useUploadDocument();
@@ -76,14 +74,22 @@ export function useDocumentOperations() {
   }, [deleteMutation, handleError, clearError]);
   
   // Get documents with pagination and search
-  const getDocuments = useCallback((page = 1, limit = 10, search?: string) => {
-    return useDocuments(page, limit, search);
-  }, []);
+  const getDocuments = useCallback(() => {
+    // Note: This should be called at the component level, not inside a callback
+    // Return a function that can be used to invalidate and refetch
+    return () => {
+      cacheManager.invalidateDocuments();
+    };
+  }, [cacheManager]);
   
   // Get a single document by ID
   const getDocument = useCallback((id: string) => {
-    return useDocument(id);
-  }, []);
+    // Note: This should be called at the component level, not inside a callback
+    // Return a function that can be used to invalidate and refetch
+    return () => {
+      cacheManager.invalidateDocument(id);
+    };
+  }, [cacheManager]);
   
   // Prefetch documents for better UX
   const prefetchDocuments = useCallback(async (page = 1, limit = 10, search?: string) => {

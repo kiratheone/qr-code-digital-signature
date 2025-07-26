@@ -83,7 +83,6 @@ const TestFormComponent = () => {
   const {
     fields,
     validateSingleField,
-    validateAllFields,
     updateField,
     touchField,
     resetForm,
@@ -105,7 +104,7 @@ const TestFormComponent = () => {
     },
   });
 
-  const mockSubmit = async (data: Record<string, any>) => {
+  const mockSubmit = async (data: Record<string, unknown>) => {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 100));
     if (data.email === 'fail@example.com') {

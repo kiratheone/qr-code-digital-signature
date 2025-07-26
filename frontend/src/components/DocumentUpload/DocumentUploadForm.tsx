@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
-import { DocumentUploadRequest, UploadProgressState, QRCodePosition } from '@/types/document';
+import { DocumentUploadRequest, UploadProgressState } from '@/types/document';
 import { ErrorDisplay } from '@/components/UI/ErrorDisplay';
 import { LoadingButton } from '@/components/UI/LoadingSpinner';
 import { AnimatedProgressBar } from '@/components/UI/ProgressIndicator';
@@ -36,7 +36,6 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
   });
   
   const selectedFile = watch('file');
-  const position = watch('position');
 
   // Reset form state when component unmounts
   useEffect(() => {
@@ -209,7 +208,7 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
                   className="mt-2 text-xs text-red-600 hover:text-red-800"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setValue('file', undefined as any);
+                    setValue('file', undefined as File | undefined);
                   }}
                 >
                   Remove file

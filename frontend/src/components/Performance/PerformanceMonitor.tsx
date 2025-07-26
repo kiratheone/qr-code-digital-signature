@@ -36,10 +36,10 @@ export default function PerformanceMonitor({ children }: PerformanceMonitorProps
 
   // Monitor route changes
   useEffect(() => {
-    const startTime = performance.now();
+    performance.now(); // Mark start time
 
     return () => {
-      const endTime = performance.now();
+      performance.now(); // Mark end time
       performanceMonitor.measureInteraction(`route-change-${pathname}`, () => {
         // Route change completed
       });

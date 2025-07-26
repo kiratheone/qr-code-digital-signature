@@ -1,8 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import DocumentUploadForm from '../DocumentUploadForm';
-import { DocumentUploadRequest } from '@/types/document';
 
 // Mock react-dropzone
 jest.mock('react-dropzone', () => ({
