@@ -96,16 +96,6 @@ export function useDocumentOperations() {
     }
   }, [cacheManager]);
 
-  // Get documents with pagination
-  const getDocuments = useCallback((page = 1, limit = 10, search?: string) => {
-    return useDocuments(page, limit, search);
-  }, []);
-
-  // Get single document by ID
-  const getDocument = useCallback((docId: string) => {
-    return useDocument(docId);
-  }, []);
-
   // Refresh all document data
   const refreshDocuments = useCallback(() => {
     cacheManager.invalidateDocuments();
@@ -114,8 +104,8 @@ export function useDocumentOperations() {
   return {
     uploadDocument,
     deleteDocument,
-    getDocuments,
-    getDocument,
+    useDocuments,
+    useDocument,
     prefetchDocuments,
     prefetchDocument,
     refreshDocuments,
