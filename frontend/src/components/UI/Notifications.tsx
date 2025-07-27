@@ -67,12 +67,12 @@ export function NotificationProvider({
     // Auto-remove notification after duration (unless persistent)
     if (!notification.persistent && newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => {
-        removeNotification(id);
+        setNotifications(prev => prev.filter(notification => notification.id !== id));
       }, newNotification.duration);
     }
 
     return id;
-  }, [maxNotifications, removeNotification]);
+  }, [maxNotifications]);
 
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
@@ -112,7 +112,7 @@ function NotificationItem({ notification }: NotificationItemProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Trigger animation
+    // Trigger animatio
     const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
