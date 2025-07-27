@@ -112,7 +112,7 @@ function NotificationItem({ notification }: NotificationItemProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Trigger animatio
+    // Trigger animation
     const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
