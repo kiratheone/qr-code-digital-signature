@@ -150,7 +150,6 @@ export function ProgressIndicator({
 // Hook for managing progress steps
 export function useProgressSteps(initialSteps: ProgressStep[]) {
   const [steps, setSteps] = useState<ProgressStep[]>(initialSteps);
-  const [currentStepId] = useState<string | null>(null);
 
   const updateStep = (stepId: string, updates: Partial<ProgressStep>) => {
     setSteps(prev => prev.map(step => 
@@ -212,7 +211,6 @@ export function useProgressSteps(initialSteps: ProgressStep[]) {
 
   return {
     steps,
-    currentStepId,
     updateStep,
     setStepStatus,
     nextStep,
