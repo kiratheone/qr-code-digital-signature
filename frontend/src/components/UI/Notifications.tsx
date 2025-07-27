@@ -67,7 +67,7 @@ export function NotificationProvider({
     // Auto-remove notification after duration (unless persistent)
     if (!notification.persistent && newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => {
-        setNotifications(prev => prev.filter(notification => notification.id !== id));
+        removeNotification(id);
       }, newNotification.duration);
     }
 
