@@ -1,7 +1,7 @@
 import React from 'react';
 import { VerificationResponse, VerificationStatus } from '@/types/verification';
 import { formatDate } from '@/utils/dateUtils';
-import { ErrorDisplay, SuccessDisplay } from '@/components/UI/ErrorDisplay';
+import { ErrorDisplay } from '@/components/UI/ErrorDisplay';
 
 interface VerificationResultProps {
   result: VerificationResponse;

@@ -97,7 +97,7 @@ describe('apiUtils', () => {
 
     beforeEach(() => {
       // Reset singleton
-      (NetworkManager as any).instance = undefined;
+      (NetworkManager as unknown as { instance: NetworkManager | undefined }).instance = undefined;
       
       // Mock navigator.onLine
       Object.defineProperty(navigator, 'onLine', {
@@ -147,7 +147,7 @@ describe('apiUtils', () => {
 
     beforeEach(() => {
       // Reset singleton
-      (RequestQueue as any).instance = undefined;
+      (RequestQueue as unknown as { instance: RequestQueue | undefined }).instance = undefined;
       requestQueue = RequestQueue.getInstance();
     });
 

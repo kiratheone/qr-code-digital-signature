@@ -22,7 +22,7 @@ export async function createRobustRequest<T>(
     signal,
   } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -165,9 +165,9 @@ export class RequestQueue {
   private static instance: RequestQueue;
   private queue: Array<{
     id: string;
-    request: () => Promise<any>;
-    resolve: (value: any) => void;
-    reject: (error: any) => void;
+    request: () => Promise<unknown>;
+    resolve: (value: unknown) => void;
+    reject: (error: unknown) => void;
   }> = [];
   private processing = false;
 

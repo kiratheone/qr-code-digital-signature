@@ -128,7 +128,7 @@ apiClient.interceptors.response.use(
     }
     
     // Extract error message from response data
-    const responseData = error.response?.data as any;
+    const responseData = error.response?.data as { message?: string; details?: string } | undefined;
     
     // Create a standardized error object
     const errorResponse: ApiErrorResponse = {
@@ -167,13 +167,13 @@ export const get = async <T>(url: string, params?: object): Promise<T> => {
 };
 
 // Generic POST request function
-export const post = async <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+export const post = async <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
   const response: AxiosResponse<T> = await apiClient.post(url, data, config);
   return response.data;
 };
 
 // Generic PUT request function
-export const put = async <T>(url: string, data?: any): Promise<T> => {
+export const put = async <T>(url: string, data?: unknown): Promise<T> => {
   const response: AxiosResponse<T> = await apiClient.put(url, data);
   return response.data;
 };

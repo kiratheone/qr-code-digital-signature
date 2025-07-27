@@ -8,7 +8,7 @@ export interface ValidationRule {
   minLength?: number;
   maxLength?: number;
   pattern?: RegExp;
-  custom?: (value: any) => string | null;
+  custom?: (value: unknown) => string | null;
   email?: boolean;
   url?: boolean;
   number?: boolean;
@@ -17,7 +17,7 @@ export interface ValidationRule {
 }
 
 export interface FieldValidation {
-  value: any;
+  value: unknown;
   rules: ValidationRule;
   error?: string;
   touched?: boolean;
@@ -28,7 +28,7 @@ export interface FormValidation {
 }
 
 // Validation functions
-export function validateField(value: any, rules: ValidationRule): string | null {
+export function validateField(value: unknown, rules: ValidationRule): string | null {
   // Required validation
   if (rules.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
     return 'This field is required';
@@ -102,7 +102,7 @@ export function useFormValidation(initialFields: FormValidation) {
   const [lastSubmitTime, setLastSubmitTime] = useState<Date | null>(null);
   const [validationMode, setValidationMode] = useState<'onBlur' | 'onChange' | 'onSubmit'>('onBlur');
 
-  const validateSingleField = useCallback((fieldName: string, value: any) => {
+  const validateSingleField = useCallback((fieldName: string, value: unknown) => {
     const field = fields[fieldName];
     if (!field) return null;
 
@@ -152,7 +152,7 @@ export function useFormValidation(initialFields: FormValidation) {
     return { isValid, errors };
   }, [fields]);
 
-  const updateField = useCallback((fieldName: string, value: any) => {
+  const updateField = useCallback((fieldName: string, value: unknown) => {
     setFields(prev => ({
       ...prev,
       [fieldName]: {
@@ -197,7 +197,7 @@ export function useFormValidation(initialFields: FormValidation) {
   }, [initialFields]);
 
   const handleSubmit = useCallback(async (
-    onSubmit: (data: Record<string, any>) => Promise<void>,
+    onSubmit: (data: Record<string, unknown>) => Promise<void>,
     options?: { 
       showSuccessMessage?: boolean;
       successMessage?: string;
@@ -241,7 +241,7 @@ export function useFormValidation(initialFields: FormValidation) {
       const formData = Object.keys(fields).reduce((acc, key) => {
         acc[key] = fields[key].value;
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
 
       // Submit form
       await onSubmit(formData);

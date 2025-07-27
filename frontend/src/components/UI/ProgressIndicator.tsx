@@ -12,7 +12,6 @@ export interface ProgressStep {
 
 interface ProgressIndicatorProps {
   steps: ProgressStep[];
-  currentStep?: string;
   className?: string;
   variant?: 'horizontal' | 'vertical';
   showLabels?: boolean;
@@ -21,7 +20,6 @@ interface ProgressIndicatorProps {
 
 export function ProgressIndicator({
   steps,
-  currentStep,
   className = '',
   variant = 'horizontal',
   showLabels = true,
@@ -79,7 +77,6 @@ export function ProgressIndicator({
     if (index >= steps.length - 1) return '';
     
     const currentStepStatus = steps[index].status;
-    const nextStepStatus = steps[index + 1].status;
     
     if (currentStepStatus === 'completed') {
       return 'bg-green-500';
@@ -153,7 +150,6 @@ export function ProgressIndicator({
 // Hook for managing progress steps
 export function useProgressSteps(initialSteps: ProgressStep[]) {
   const [steps, setSteps] = useState<ProgressStep[]>(initialSteps);
-  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
 
   const updateStep = (stepId: string, updates: Partial<ProgressStep>) => {
     setSteps(prev => prev.map(step => 
@@ -215,7 +211,6 @@ export function useProgressSteps(initialSteps: ProgressStep[]) {
 
   return {
     steps,
-    currentStepId,
     updateStep,
     setStepStatus,
     nextStep,

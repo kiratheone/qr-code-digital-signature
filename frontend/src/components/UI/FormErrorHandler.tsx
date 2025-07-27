@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ErrorDisplay } from './ErrorDisplay';
 import { LoadingSpinner } from './LoadingSpinner';
 import { useNotificationHelpers } from './Notifications';
-import { formatApiError, isRetryableError } from '@/utils/apiErrorUtils';
+import { formatApiError } from '@/utils/apiErrorUtils';
 
 interface FormError {
   field?: string;
@@ -23,8 +23,8 @@ interface FormErrorState {
 
 interface FormErrorHandlerProps {
   children: React.ReactNode;
-  onSubmit: (data: any) => Promise<void>;
-  onSuccess?: (data: any) => void;
+  onSubmit: (data: unknown) => Promise<void>;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: unknown) => void;
   maxRetries?: number;
   retryDelay?: number;
@@ -54,21 +54,6 @@ export function FormErrorHandler({
 
   const { showSuccess, showError, showWarning } = useNotificationHelpers();
 
-  const clearErrors = useCallback(() => {
-    setErrorState(prev => ({
-      ...prev,
-      errors: [],
-      canRetry: false,
-    }));
-  }, []);
-
-  const addError = useCallback((error: FormError) => {
-    setErrorState(prev => ({
-      ...prev,
-      errors: [...prev.errors, error],
-    }));
-  }, []);
-
   const removeError = useCallback((index: number) => {
     setErrorState(prev => ({
       ...prev,
@@ -76,7 +61,7 @@ export function FormErrorHandler({
     }));
   }, []);
 
-  const handleSubmit = useCallback(async (formData: any) => {
+  const handleSubmit = useCallback(async (_formData: unknown) => {
     // Prevent duplicate submissions
     if (preventDuplicateSubmission && errorState.lastSubmitTime) {
       const timeSinceLastSubmit = Date.now() - errorState.lastSubmitTime.getTime();
@@ -98,7 +83,7 @@ export function FormErrorHandler({
 
     try {
       await onSubmit(formData);
-      
+
       // Success
       setErrorState(prev => ({
         ...prev,
@@ -115,10 +100,10 @@ export function FormErrorHandler({
 
     } catch (error) {
       console.error('Form submission error:', error);
-      
+
       const formErrors = parseFormError(error);
-      const canRetry = formErrors.some(err => err.type === 'network' || err.type === 'timeout') && 
-                      errorState.submitAttempts < maxRetries;
+      const canRetry = formErrors.some(err => err.type === 'network' || err.type === 'timeout') &&
+        errorState.submitAttempts < maxRetries;
 
       setErrorState(prev => ({
         ...prev,
@@ -153,7 +138,7 @@ export function FormErrorHandler({
 
     // Wait for retry delay
     await new Promise(resolve => setTimeout(resolve, retryDelay * errorState.submitAttempts));
-    
+
     // This would need to be called with the last form data
     // In practice, this would be handled by the parent component
     console.log('Retry requested - parent component should handle this');
@@ -216,7 +201,7 @@ export function FormErrorHandler({
             </svg>
             <div className="text-sm text-yellow-700">
               <p>
-                Submission failed due to a temporary issue. 
+                Submission failed due to a temporary issue.
                 {errorState.submitAttempts < maxRetries && (
                   <span> Retrying automatically...</span>
                 )}
@@ -239,9 +224,9 @@ function parseFormError(error: unknown): FormError[] {
   if (typeof error === 'object' && error !== null) {
     // Handle validation errors from backend
     if ('validation_errors' in error) {
-      const validationErrors = (error as any).validation_errors;
+      const validationErrors = (error as { validation_errors?: unknown[] }).validation_errors;
       if (Array.isArray(validationErrors)) {
-        validationErrors.forEach((err: any) => {
+        validationErrors.forEach((err: { field?: string; message?: string; code?: string }) => {
           errors.push({
             field: err.field,
             message: err.message,
@@ -253,9 +238,9 @@ function parseFormError(error: unknown): FormError[] {
     }
     // Handle API errors
     else if ('status' in error || 'status_code' in error) {
-      const status = (error as any).status || (error as any).status_code;
-      const message = (error as any).message || 'An error occurred';
-      
+      const status = (error as { status?: number; status_code?: number }).status || (error as { status?: number; status_code?: number }).status_code;
+      const message = (error as { message?: string }).message || 'An error occurred';
+
       let type: FormError['type'] = 'server';
       if (status === 0 || status === undefined) {
         type = 'network';
@@ -274,8 +259,8 @@ function parseFormError(error: unknown): FormError[] {
     // Handle Error objects
     else if (error instanceof Error) {
       let type: FormError['type'] = 'server';
-      if (error.message.toLowerCase().includes('network') || 
-          error.message.toLowerCase().includes('fetch')) {
+      if (error.message.toLowerCase().includes('network') ||
+        error.message.toLowerCase().includes('fetch')) {
         type = 'network';
       } else if (error.message.toLowerCase().includes('timeout')) {
         type = 'timeout';
@@ -316,8 +301,8 @@ export function useFormErrorHandler(options: {
   const { showSuccess, showError } = useNotificationHelpers();
 
   const handleFormSubmit = useCallback(async (
-    onSubmit: (data: any) => Promise<void>,
-    formData: any
+    onSubmit: (data: unknown) => Promise<void>,
+    formData: unknown
   ) => {
     setErrorState(prev => ({
       ...prev,
@@ -329,7 +314,7 @@ export function useFormErrorHandler(options: {
 
     try {
       await onSubmit(formData);
-      
+
       setErrorState(prev => ({
         ...prev,
         isSubmitting: false,
@@ -343,8 +328,8 @@ export function useFormErrorHandler(options: {
 
     } catch (error) {
       const formErrors = parseFormError(error);
-      const canRetry = formErrors.some(err => err.type === 'network' || err.type === 'timeout') && 
-                      errorState.submitAttempts < (options.maxRetries || 3);
+      const canRetry = formErrors.some(err => err.type === 'network' || err.type === 'timeout') &&
+        errorState.submitAttempts < (options.maxRetries || 3);
 
       setErrorState(prev => ({
         ...prev,

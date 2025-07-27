@@ -3,7 +3,7 @@ import ReactQueryProvider from '../ReactQueryProvider';
 
 // Mock the ReactQueryDevtools
 jest.mock('@tanstack/react-query-devtools', () => ({
-  ReactQueryDevtools: ({ initialIsOpen }: { initialIsOpen: boolean }) => 
+  ReactQueryDevtools: () => 
     <div data-testid="react-query-devtools" />,
 }));
 

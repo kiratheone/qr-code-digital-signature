@@ -14,19 +14,17 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 const MockFormWithHandler = ({ 
   shouldFail = false, 
   failureType = 'server',
-  data = { test: 'data' },
   onSuccess,
   onError
 }: {
   shouldFail?: boolean;
   failureType?: 'server' | 'network' | 'validation' | 'timeout';
-  data?: any;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: unknown) => void;
 }) => {
-  const mockSubmit = async (formData: any) => {
+  const mockSubmit = async (formData: unknown) => {
     if (shouldFail) {
-      let error: any;
+      let error: unknown;
       switch (failureType) {
         case 'network':
           error = new Error('Network error');
@@ -154,7 +152,7 @@ const FormErrorHookTest = () => {
     showNotifications: false,
   });
 
-  const mockSubmit = async (data: any) => {
+  const mockSubmit = async (data: { shouldFail?: boolean }) => {
     if (data.shouldFail) {
       throw new Error('Test error');
     }

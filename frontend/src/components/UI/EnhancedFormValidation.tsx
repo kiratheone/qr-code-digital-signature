@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useFormValidation, ValidationRule, ValidatedInput, ValidatedTextarea, ValidatedSelect } from './FormValidation';
+import { useFormValidation, ValidationRule } from './FormValidation';
 import { LoadingSpinner } from './LoadingSpinner';
 import { useNotificationHelpers } from './Notifications';
 
 // Enhanced form wrapper with comprehensive error handling
 interface EnhancedFormProps {
   children: React.ReactNode;
-  onSubmit: (data: any) => Promise<void>;
-  initialValues?: Record<string, any>;
+  onSubmit: (data: Record<string, unknown>) => Promise<void>;
+  initialValues?: Record<string, unknown>;
   validationRules?: Record<string, ValidationRule>;
   className?: string;
   showProgress?: boolean;
@@ -40,7 +40,7 @@ export function EnhancedForm({
       rules: validationRules[key] || {},
     };
     return acc;
-  }, {} as Record<string, { value: any; rules: ValidationRule }>);
+  }, {} as Record<string, { value: unknown; rules: ValidationRule }>);
 
   const {
     fields,
@@ -56,10 +56,10 @@ export function EnhancedForm({
     if (!autoSave || !isFormValid || hasErrors) return;
 
     try {
-      const formData = Object.keys(fields).reduce((acc, key) => {
+      Object.keys(fields).reduce((acc, key) => {
         acc[key] = fields[key].value;
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
 
       // Call a draft save function (would need to be passed as prop)
       // await onAutoSave?.(formData);
@@ -114,7 +114,7 @@ export function EnhancedForm({
       const formData = Object.keys(fields).reduce((acc, key) => {
         acc[key] = fields[key].value;
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, unknown>);
 
       // Submit form
       await onSubmit(formData);

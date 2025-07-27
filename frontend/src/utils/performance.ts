@@ -15,6 +15,16 @@ export interface WebVitals {
   TTFB?: number; // Time to First Byte
 }
 
+// Proper interfaces for performance entries
+interface FirstInputPerformanceEntry extends PerformanceEntry {
+  processingStart: number;
+}
+
+interface LayoutShiftPerformanceEntry extends PerformanceEntry {
+  hadRecentInput: boolean;
+  value: number;
+}
+
 class PerformanceMonitor {
   private metrics: Map<string, PerformanceMetrics> = new Map();
   private webVitals: WebVitals = {};
@@ -89,13 +99,15 @@ class PerformanceMonitor {
 
     // First Input Delay
     this.observePerformanceEntry('first-input', (entry) => {
-      this.webVitals.FID = (entry as any).processingStart - entry.startTime;
+      const firstInputEntry = entry as FirstInputPerformanceEntry;
+      this.webVitals.FID = firstInputEntry.processingStart - firstInputEntry.startTime;
     });
 
     // Cumulative Layout Shift
     this.observePerformanceEntry('layout-shift', (entry) => {
-      if (!(entry as any).hadRecentInput) {
-        this.webVitals.CLS = (this.webVitals.CLS || 0) + (entry as any).value;
+      const layoutShiftEntry = entry as LayoutShiftPerformanceEntry;
+      if (!layoutShiftEntry.hadRecentInput) {
+        this.webVitals.CLS = (this.webVitals.CLS || 0) + layoutShiftEntry.value;
       }
     });
 

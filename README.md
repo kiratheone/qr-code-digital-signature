@@ -106,13 +106,37 @@ The system follows Clean Architecture principles with clear separation of concer
 - Input validation and sanitization
 - Audit logging for all operations
 
+## Testing
+
+### Manual Testing
+
+#### Backend Tests
+```bash
+cd backend
+go test -v ./...
+go test -race ./...
+go test -bench=. ./...
+```
+
+#### Frontend Tests
+```bash
+cd frontend
+npm test
+npm run lint
+npm run type-check
+npm run build
+```
+
+For detailed troubleshooting, see [CI_TROUBLESHOOTING.md](docs/CI_TROUBLESHOOTING.md).
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Submit a pull request
+5. Test your changes locally
+6. Submit a pull request
 
 ## License
 

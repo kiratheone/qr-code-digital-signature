@@ -10,6 +10,12 @@ import {
 } from '@/utils/apiErrorUtils';
 import { ApiErrorResponse } from '@/api/client';
 
+// Type for error objects with status codes
+interface ErrorWithStatus {
+  status?: number;
+  status_code?: number;
+}
+
 export interface ErrorState {
   error: EnhancedApiError | ApiErrorResponse | null;
   userMessage: string | null;
@@ -113,8 +119,8 @@ export function useApiError() {
   // Check if the error is a network error
   const isOffline = useCallback(() => {
     return errorState.error !== null && (
-      (errorState.error as any).status === 0 || 
-      (errorState.error as any).status_code === 0 ||
+      (errorState.error as ErrorWithStatus).status === 0 || 
+      (errorState.error as ErrorWithStatus).status_code === 0 ||
       isNetworkError(errorState.error)
     );
   }, [errorState.error]);
@@ -126,9 +132,10 @@ export function useApiError() {
 
   // Check if the error is a client error (4xx)
   const isClientError = useCallback(() => {
+    const error = errorState.error as ErrorWithStatus;
     return errorState.error !== null && (
-      ((errorState.error as any).status >= 400 && (errorState.error as any).status < 500) ||
-      ((errorState.error as any).status_code >= 400 && (errorState.error as any).status_code < 500)
+      (error.status !== undefined && error.status >= 400 && error.status < 500) ||
+      (error.status_code !== undefined && error.status_code >= 400 && error.status_code < 500)
     );
   }, [errorState.error]);
 

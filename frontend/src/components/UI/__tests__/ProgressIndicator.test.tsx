@@ -69,7 +69,6 @@ describe('ProgressIndicator', () => {
 const ProgressStepsTest = () => {
   const {
     steps,
-    updateStep,
     setStepStatus,
     nextStep,
     previousStep,

@@ -31,12 +31,16 @@ const createWrapper = () => {
       },
     },
   });
-  
-  return ({ children }: { children: ReactNode }) => (
+
+  const TestWrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
     </QueryClientProvider>
   );
+
+  TestWrapper.displayName = 'TestWrapper';
+
+  return TestWrapper;
 };
 
 describe('Verification API Hooks', () => {
@@ -54,37 +58,37 @@ describe('Verification API Hooks', () => {
         status: 'pending',
         message: 'Please upload the document to verify',
       };
-      
+
       mockGet.mockResolvedValueOnce(mockVerificationInfo);
-      
+
       const { result } = renderHook(() => useVerificationInfo('123'), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.isLoading).toBe(true);
-      
+
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-      
+
       expect(mockGet).toHaveBeenCalledWith('/api/verify/123');
       expect(result.current.data).toEqual(mockVerificationInfo);
     });
-    
+
     it('handles error when fetching verification info', async () => {
       const mockError = { status: 404, message: 'Document not found' };
-      
+
       // Mock the error for both the initial call and the retry
       mockGet.mockRejectedValue(mockError);
-      
+
       const { result } = renderHook(() => useVerificationInfo('123'), {
         wrapper: createWrapper(),
       });
-      
+
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       }, { timeout: 3000 });
-      
+
       expect(mockGet).toHaveBeenCalledWith('/api/verify/123');
       expect(result.current.error).toBeDefined();
     });
@@ -100,42 +104,42 @@ describe('Verification API Hooks', () => {
         status: 'valid',
         message: 'Document is valid',
       };
-      
+
       mockPost.mockResolvedValueOnce(mockVerificationResult);
-      
+
       const { result } = renderHook(() => useVerifyDocument(), {
         wrapper: createWrapper(),
       });
-      
+
       const mockFile = new File(['test'], 'test.pdf', { type: 'application/pdf' });
-      
+
       result.current.mutate({ docId: '123', file: mockFile });
-      
+
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-      
+
       expect(mockPost).toHaveBeenCalled();
       expect(result.current.data).toEqual(mockVerificationResult);
     });
-    
+
     it('handles error when verifying a document', async () => {
       const mockError = { status: 400, message: 'Invalid file format' };
-      
+
       mockPost.mockRejectedValueOnce(mockError);
-      
+
       const { result } = renderHook(() => useVerifyDocument(), {
         wrapper: createWrapper(),
       });
-      
+
       const mockFile = new File(['test'], 'test.pdf', { type: 'application/pdf' });
-      
+
       result.current.mutate({ docId: '123', file: mockFile });
-      
+
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
-      
+
       expect(mockPost).toHaveBeenCalled();
       expect(result.current.error).toBeDefined();
     });

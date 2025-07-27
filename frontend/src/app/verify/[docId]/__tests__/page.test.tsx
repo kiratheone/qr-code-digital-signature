@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import VerifyPage from '../page';
 import { getVerificationInfo, verifyDocument } from '@/api/verification';
 import { VerificationResponse } from '@/types/verification';

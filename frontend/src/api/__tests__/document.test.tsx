@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDocuments, useDocument, useUploadDocument, useDeleteDocument } from '../document';
 import * as client from '../client';
 import { ReactNode } from 'react';
-
 // Mock the client module
 jest.mock('../client', () => ({
   get: jest.fn(),
@@ -25,11 +24,15 @@ const createWrapper = () => {
     },
   });
   
-  return ({ children }: { children: ReactNode }) => (
+  const TestWrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
     </QueryClientProvider>
   );
+  
+  TestWrapper.displayName = 'TestWrapper';
+  
+  return TestWrapper;
 };
 
 describe('Document API Hooks', () => {

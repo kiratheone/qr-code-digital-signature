@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { ErrorFallbackProps } from './ErrorBoundary';
-import { ErrorRecovery } from './ErrorRecovery';
 
 export function ErrorFallback({ error, resetError, hasError }: ErrorFallbackProps) {
   if (!hasError || !error) {

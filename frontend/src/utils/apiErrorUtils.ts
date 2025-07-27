@@ -8,6 +8,18 @@ export interface EnhancedApiError {
   details?: string;
   timestamp?: string;
   request_id?: string;
+}
+
+// Generic API error interface for type safety
+interface ApiError {
+  type?: string;
+  code?: string;
+  message?: string;
+  status_code?: number;
+  status?: number;
+  details?: string;
+  validation_errors?: Array<{ field: string; message: string }>;
+  retry_after?: number;
   path?: string;
   method?: string;
   status_code: number;
@@ -25,7 +37,7 @@ export function formatApiError(error: unknown): string {
   
   // Handle enhanced API errors from backend
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     
     // Check for new backend error format
     if (apiError.type && apiError.code && apiError.message) {
@@ -140,7 +152,7 @@ export function isNetworkError(error: unknown): boolean {
   
   // Check for network-related status codes
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
     return status === 0 || status === undefined;
   }
@@ -155,7 +167,7 @@ export function isNetworkError(error: unknown): boolean {
  */
 export function isServerError(error: unknown): boolean {
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
     return status >= 500 && status < 600;
   }
@@ -170,7 +182,7 @@ export function isServerError(error: unknown): boolean {
  */
 export function isClientError(error: unknown): boolean {
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
     return status >= 400 && status < 500;
   }
@@ -189,7 +201,7 @@ export function isRetryableError(error: unknown): boolean {
   }
   
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
     
     // Retry on server errors and rate limiting
@@ -207,7 +219,7 @@ export function isRetryableError(error: unknown): boolean {
  */
 export function getRetryDelay(error: unknown, attempt: number): number {
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     
     // Check for Retry-After header value in error details
     if (apiError.details && typeof apiError.details === 'string') {
@@ -227,9 +239,9 @@ export function getRetryDelay(error: unknown, attempt: number): number {
  * @param error The error
  * @returns Error details object
  */
-export function extractErrorDetails(error: unknown): Record<string, any> {
+export function extractErrorDetails(error: unknown): Record<string, unknown> {
   if (typeof error === 'object' && error !== null) {
-    const apiError = error as any;
+    const apiError = error as ApiError;
     return {
       type: apiError.type,
       code: apiError.code,
