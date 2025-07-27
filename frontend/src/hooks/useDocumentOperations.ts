@@ -75,9 +75,6 @@ export function useDocumentOperations() {
     }
   }, [deleteMutation, handleError, clearError]);
 
-  // Expose the hooks directly for use in components
-  const useDocumentsHook = useDocuments;
-  const useDocumentHook = useDocument;
 
   // Prefetch documents for better UX
   const prefetchDocuments = useCallback(async (page = 1, limit = 10, search?: string) => {
@@ -107,8 +104,8 @@ export function useDocumentOperations() {
   return {
     uploadDocument,
     deleteDocument,
-    useDocuments: useDocumentsHook,
-    useDocument: useDocumentHook,
+    useDocuments,
+    useDocument,
     prefetchDocuments,
     prefetchDocument,
     refreshDocuments,
