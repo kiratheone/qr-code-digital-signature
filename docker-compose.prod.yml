@@ -108,7 +108,7 @@ services:
         max-file: "5"
         labels: "service=backend"
     healthcheck:
-      test: ["/healthcheck"]
+      test: ["CMD", "/healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
