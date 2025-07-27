@@ -278,12 +278,11 @@ validate_secrets() {
     )
     
     for secret in "${required_secrets[@]}"; do
-        if [ ! -s "$SECRETS_DIR/$secret" ]; then
-            if [ ! -f "$SECRETS_DIR/$secret" ]; then
-                log_error "Missing required secret: $secret"
-            else
-                log_error "Secret file is empty: $secret"
-            fi
+        if [ ! -f "$SECRETS_DIR/$secret" ]; then
+            log_error "Missing required secret: $secret"
+            ((errors++))
+        elif [ ! -s "$SECRETS_DIR/$secret" ]; then
+            log_error "Secret file is empty: $secret"
             ((errors++))
         fi
     done
