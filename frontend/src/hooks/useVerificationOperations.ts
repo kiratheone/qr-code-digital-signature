@@ -27,14 +27,6 @@ export function useVerificationOperations() {
     return unsubscribe;
   }, []);
   
-  // Get verification info with error handling
-  const getVerificationInfo = useCallback((docId: string) => {
-    // Note: This should be called at the component level, not inside a callback
-    // Return a function that can be used to invalidate and refetch
-    return () => {
-      cacheManager.invalidateVerification(docId);
-    };
-  }, [cacheManager]);
   
   // Verify document with error handling
   const verifyDocument = useCallback(async (docId: string, file: File): Promise<VerificationResponse> => {
@@ -58,7 +50,6 @@ export function useVerificationOperations() {
   }, [cacheManager]);
 
   return {
-    getVerificationInfo,
     verifyDocument,
     refreshVerification,
     isLoading,
