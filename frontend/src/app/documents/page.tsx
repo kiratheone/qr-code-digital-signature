@@ -2,25 +2,26 @@
 
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { getDocuments, deleteDocument } from '@/api/document';
+import { Document } from '@/types/document';
 import Link from 'next/link';
 import DocumentList from '@/components/DocumentManagement/DocumentList';
 import SearchBar from '@/components/DocumentManagement/SearchBar';
 import Pagination from '@/components/DocumentManagement/Pagination';
-import LoadingSpinner from '@/components/UI/LoadingSpinner';
+import { LoadingSpinner } from '@/components/UI/LoadingSpinner';
 
 // Lazy load heavy components
 const DocumentDetailsModal = lazy(() => import('@/components/DocumentManagement/DocumentDetailsModal'));
 const DeleteConfirmationDialog = lazy(() => import('@/components/DocumentManagement/DeleteConfirmationDialog'));
 
 export default function DocumentManagementPage() {
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const limit = 10;
@@ -44,21 +45,21 @@ export default function DocumentManagementPage() {
     fetchDocuments(currentPage, searchQuery);
   }, [currentPage, searchQuery]);
 
-  const handleSearch = (query) => {
+  const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1); // Reset to first page on new search
   };
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const handleViewDetails = (document) => {
+  const handleViewDetails = (document: Document) => {
     setSelectedDocument(document);
     setIsDetailsModalOpen(true);
   };
 
-  const handleDeleteClick = (document) => {
+  const handleDeleteClick = (document: Document) => {
     setDocumentToDelete(document);
     setIsDeleteModalOpen(true);
   };

@@ -21,10 +21,7 @@ func main() {
 	}
 
 	// Create signature service
-	service, err := services.NewSignatureService("", "")
-	if err != nil {
-		log.Fatalf("Failed to create signature service: %v", err)
-	}
+	service := &services.RSASignatureService{}
 
 	// Generate key pair
 	privateKey, publicKey, err := service.GenerateKeyPair(keySize)

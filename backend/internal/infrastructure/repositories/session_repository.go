@@ -43,6 +43,14 @@ func (r *sessionRepository) Delete(ctx context.Context, token string) error {
 	return r.db.WithContext(ctx).Delete(&entities.Session{}, "session_token = ?", token).Error
 }
 
+func (r *sessionRepository) GetByRefreshToken(ctx context.Context, refreshToken string) ([]*entities.Session, error) {
+	var sessions []*entities.Session
+	if err := r.db.WithContext(ctx).Where("refresh_token = ?", refreshToken).Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	return sessions, nil
+}
+
 func (r *sessionRepository) DeleteByUserID(ctx context.Context, userID string) error {
 	return r.db.WithContext(ctx).Delete(&entities.Session{}, "user_id = ?", userID).Error
 }

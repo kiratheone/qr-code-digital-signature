@@ -1,5 +1,5 @@
 # Multi-stage build for production optimization
-FROM golang:1.22-alpine AS base
+FROM golang:1.23-alpine AS base
 
 # Install build dependencies and security updates
 RUN apk update && apk upgrade && \
@@ -21,9 +21,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Build stage
 FROM base AS builder
 
-# Copy dependencies cache
-COPY --from=dependencies /go/pkg /go/pkg
-
 # Copy go mod files
 COPY go.mod go.sum ./
 
@@ -31,7 +28,7 @@ COPY go.mod go.sum ./
 COPY . .
 
 # Build the application with optimizations and version info
-ARG VERSION=unknown
+ARG VERSION=latest
 ARG BUILD_TIME=unknown
 ARG GIT_COMMIT=unknown
 ARG TARGETOS=linux
@@ -91,8 +88,6 @@ ENV GOMEMLIMIT=512MiB
 
 # Add labels for better container management
 LABEL maintainer="Digital Signature System" \
-      version="${VERSION}" \
-      description="Digital Signature System Backend API"
+      version="${VERSION}"
 
-# Command to run
 ENTRYPOINT ["/main"]

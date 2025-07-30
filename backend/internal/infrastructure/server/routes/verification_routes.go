@@ -9,7 +9,7 @@ import (
 )
 
 // SetupVerificationRoutes sets up verification routes
-func SetupVerificationRoutes(router *gin.Engine, container *di.Container) {
+func SetupVerificationRoutes(verifyGroup *gin.RouterGroup, container *di.Container) {
 	// Create verification handler
 	verificationHandler := handlers.NewVerificationHandler(container.VerificationUseCase())
 	
@@ -17,7 +17,6 @@ func SetupVerificationRoutes(router *gin.Engine, container *di.Container) {
 	validationMiddleware := middleware.NewValidationMiddleware()
 
 	// Public verification routes (no authentication required)
-	verifyGroup := router.Group("/api/verify")
 	{
 		// GET /api/verify/:docId - Get verification info with UUID validation
 		verifyGroup.GET("/:docId", 

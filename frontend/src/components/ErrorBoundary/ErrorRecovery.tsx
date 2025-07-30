@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotificationHelpers } from '@/components/UI/Notifications';
 import { LoadingSpinner } from '@/components/UI/LoadingSpinner';
-import { NetworkManager, createErrorRecoveryHandler } from '@/utils/apiUtils';
+import { NetworkManager, createErrorRecoveryHandler } from '@/api/apiUtils';
 
 interface ErrorRecoveryProps {
   error?: Error | null;

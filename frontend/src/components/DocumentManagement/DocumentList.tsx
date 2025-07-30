@@ -1,14 +1,8 @@
+'use client';
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Document {
-  id: string;
-  filename: string;
-  issuer: string;
-  documentHash: string;
-  createdAt: string;
-  status: string;
-}
+import { Document } from '@/types/document';
 
 interface DocumentListProps {
   documents: Document[];

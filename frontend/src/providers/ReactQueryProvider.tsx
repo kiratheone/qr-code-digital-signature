@@ -65,9 +65,9 @@ function QueryClientProviderWithErrorHandling({ children }: { children: ReactNod
       queries: {
         staleTime: 5 * 60 * 1000, // 5 minutes
         gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-        retry: (failureCount, error: { status?: number }) => {
+        retry: (failureCount: number, error: Error & { status?: number }) => {
           // Don't retry on 404s or other client errors (4xx)
-          if (error?.status >= 400 && error?.status < 500) {
+          if (error?.status && error.status >= 400 && error.status < 500) {
             return false;
           }
           // Don't retry on network errors (handled by axios interceptor)
@@ -83,12 +83,11 @@ function QueryClientProviderWithErrorHandling({ children }: { children: ReactNod
         refetchOnReconnect: true,
         refetchInterval: false, // Disable automatic refetching
         networkMode: 'online', // Only run queries when online
-        onError: handleGlobalError,
       },
       mutations: {
-        retry: (failureCount, error: { status?: number }) => {
+        retry: (failureCount: number, error: Error & { status?: number }) => {
           // Only retry network errors or 5xx errors
-          if (!error?.status || error?.status >= 500) {
+          if (!error?.status || (error.status && error.status >= 500)) {
             return failureCount < 2;
           }
           return false;

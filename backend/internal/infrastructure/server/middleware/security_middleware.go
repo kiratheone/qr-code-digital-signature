@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"digital-signature-system/internal/infrastructure/validation"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"

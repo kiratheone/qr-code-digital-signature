@@ -22,15 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <div className="min-h-screen bg-gray-50">
-          <ErrorBoundary
-            onError={(error, errorInfo) => {
-              // Log error to monitoring service in production
-              if (process.env.NODE_ENV === 'production') {
-                console.error('Global error boundary caught:', error, errorInfo);
-                // TODO: Send to error reporting service
-              }
-            }}
-          >
+          <ErrorBoundary>
             <NotificationProvider>
               <ReactQueryProvider>
                 <PerformanceMonitor>

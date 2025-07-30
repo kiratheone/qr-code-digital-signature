@@ -72,7 +72,7 @@ export function NotificationProvider({
     }
 
     return id;
-  }, [maxNotifications]);
+  }, [maxNotifications, removeNotification]);
 
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);

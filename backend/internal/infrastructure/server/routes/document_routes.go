@@ -3,7 +3,6 @@ package routes
 import (
 	"digital-signature-system/internal/infrastructure/server/handlers"
 	"digital-signature-system/internal/infrastructure/server/middleware"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )

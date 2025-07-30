@@ -1,19 +1,15 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"digital-signature-system/internal/domain/services"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
-	"image/draw"
-	"image/png"
-	"io"
-	"bytes"
 
 	"github.com/skip2/go-qrcode"
-	"github.com/unidoc/unipdf/v3/common"
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
 )
@@ -119,14 +115,8 @@ func (s *QRServiceImpl) InjectQRCode(ctx context.Context, pdfData []byte, qrCode
 			return nil, fmt.Errorf("error getting page %d: %w", i+1, err)
 		}
 
-		// Import page
-		importedPage, err := c.NewPdfPageFromPage(page)
-		if err != nil {
-			return nil, fmt.Errorf("error importing page %d: %w", i+1, err)
-		}
-
 		// Add page to creator
-		c.AddPage(importedPage)
+		c.AddPage(page)
 
 		// If this is the target page, add QR code
 		if i == targetPage {

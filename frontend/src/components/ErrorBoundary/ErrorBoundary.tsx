@@ -53,6 +53,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       this.props.onError(error, errorInfo);
     }
 
+    // Log error to monitoring service in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Global error boundary caught:', error, errorInfo);
+      // TODO: Send to error reporting service
+    }
+
     // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
       console.error('ErrorBoundary caught an error:', error, errorInfo);

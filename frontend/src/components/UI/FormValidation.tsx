@@ -8,7 +8,7 @@ export interface ValidationRule {
   minLength?: number;
   maxLength?: number;
   pattern?: RegExp;
-  custom?: (value: unknown) => string | null;
+  custom?: (value: unknown) => string | undefined;
   email?: boolean;
   url?: boolean;
   number?: boolean;
@@ -28,7 +28,7 @@ export interface FormValidation {
 }
 
 // Validation functions
-export function validateField(value: unknown, rules: ValidationRule): string | null {
+export function validateField(value: unknown, rules: ValidationRule): string | undefined {
   // Required validation
   if (rules.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
     return 'This field is required';
@@ -36,7 +36,7 @@ export function validateField(value: unknown, rules: ValidationRule): string | n
 
   // Skip other validations if field is empty and not required
   if (!value || (typeof value === 'string' && value.trim() === '')) {
-    return null;
+    return undefined;
   }
 
   // String validations
@@ -90,7 +90,7 @@ export function validateField(value: unknown, rules: ValidationRule): string | n
     return rules.custom(value);
   }
 
-  return null;
+  return undefined;
 }
 
 // Hook for form validation with enhanced error handling
@@ -104,7 +104,7 @@ export function useFormValidation(initialFields: FormValidation) {
 
   const validateSingleField = useCallback((fieldName: string, value: unknown) => {
     const field = fields[fieldName];
-    if (!field) return null;
+    if (!field) return undefined;
 
     const error = validateField(value, field.rules);
     

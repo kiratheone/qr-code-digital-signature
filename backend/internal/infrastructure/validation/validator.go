@@ -133,7 +133,7 @@ func (v *Validator) ValidateAndSanitizeInput(input string, inputType string) (st
 	// Then validate based on type
 	switch inputType {
 	case "username":
-		if err := validateUsername(validator.FieldLevel(nil)); err != nil {
+		if len(sanitized) < 3 || len(sanitized) > 50 {
 			return "", fmt.Errorf("invalid username format")
 		}
 	case "email":

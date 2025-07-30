@@ -5,7 +5,7 @@ import { ErrorDisplay } from '@/components/UI/ErrorDisplay';
 
 interface VerificationResultProps {
   result: VerificationResponse;
-  onRetry?: () => void;
+  onRetry?: () => Promise<void>;
   error?: unknown;
 }
 

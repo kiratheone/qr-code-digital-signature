@@ -61,78 +61,6 @@ export function FormErrorHandler({
     }));
   }, []);
 
-  const handleSubmit = useCallback(async (_formData: unknown) => {
-    // Prevent duplicate submissions
-    if (preventDuplicateSubmission && errorState.lastSubmitTime) {
-      const timeSinceLastSubmit = Date.now() - errorState.lastSubmitTime.getTime();
-      if (timeSinceLastSubmit < 2000) {
-        if (showNotifications) {
-          showWarning('Please Wait', 'Please wait before submitting again.');
-        }
-        return;
-      }
-    }
-
-    setErrorState(prev => ({
-      ...prev,
-      isSubmitting: true,
-      errors: [],
-      submitAttempts: prev.submitAttempts + 1,
-      lastSubmitTime: new Date(),
-    }));
-
-    try {
-      await onSubmit(formData);
-
-      // Success
-      setErrorState(prev => ({
-        ...prev,
-        isSubmitting: false,
-        submitAttempts: 0,
-        canRetry: false,
-      }));
-
-      if (showNotifications) {
-        showSuccess('Success', 'Form submitted successfully!');
-      }
-
-      onSuccess?.(formData);
-
-    } catch (error) {
-      console.error('Form submission error:', error);
-
-      const formErrors = parseFormError(error);
-      const canRetry = formErrors.some(err => err.type === 'network' || err.type === 'timeout') &&
-        errorState.submitAttempts < maxRetries;
-
-      setErrorState(prev => ({
-        ...prev,
-        isSubmitting: false,
-        errors: formErrors,
-        canRetry,
-      }));
-
-      if (showNotifications) {
-        const errorMessage = formatApiError(error);
-        showError('Submission Failed', errorMessage);
-      }
-
-      onError?.(error);
-    }
-  }, [
-    onSubmit,
-    onSuccess,
-    onError,
-    errorState.lastSubmitTime,
-    errorState.submitAttempts,
-    maxRetries,
-    preventDuplicateSubmission,
-    showNotifications,
-    showSuccess,
-    showError,
-    showWarning,
-  ]);
-
   const handleRetry = useCallback(async () => {
     if (!errorState.canRetry) return;
 
@@ -226,11 +154,12 @@ function parseFormError(error: unknown): FormError[] {
     if ('validation_errors' in error) {
       const validationErrors = (error as { validation_errors?: unknown[] }).validation_errors;
       if (Array.isArray(validationErrors)) {
-        validationErrors.forEach((err: { field?: string; message?: string; code?: string }) => {
+        validationErrors.forEach((err: unknown) => {
+          const validationError = err as { field?: string; message?: string; code?: string };
           errors.push({
-            field: err.field,
-            message: err.message,
-            code: err.code,
+            field: validationError.field || '',
+            message: validationError.message || 'Validation error',
+            code: validationError.code,
             type: 'validation',
           });
         });

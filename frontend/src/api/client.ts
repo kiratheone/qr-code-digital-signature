@@ -119,7 +119,7 @@ apiClient.interceptors.response.use(
     }
     
     // Handle server errors (5xx) with retry
-    if (error.response?.status >= 500 && originalRequest._retryCount < 2) {
+    if (error.response?.status && error.response.status >= 500 && originalRequest._retryCount < 2) {
       originalRequest._retryCount++;
       const delay = Math.min(1000 * Math.pow(2, originalRequest._retryCount - 1), 5000);
       

@@ -13,6 +13,7 @@ NC='\033[0m' # No Color
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
 SECRETS_DIR="./secrets"
+USE_STANDARD_BUILD=false
 
 # Functions
 log_info() {
@@ -66,7 +67,7 @@ setup_secrets() {
     mkdir -p "$SECRETS_DIR"
     
     # Check required secret files
-    REQUIRED_SECRETS=("db_password.txt" "jwt_secret.txt" "private_key.pem" "public_key.pem")
+    REQUIRED_SECRETS=("db_password.txt" "jwt_secret.txt" "private_key.pem" "public_key.pem" "redis_password.txt")
     
     for secret in "${REQUIRED_SECRETS[@]}"; do
         if [ ! -f "$SECRETS_DIR/$secret" ]; then
@@ -84,17 +85,144 @@ setup_secrets() {
 build_images() {
     log_info "Building Docker images..."
     
-    # Build images with no cache for production
-    docker-compose -f "$COMPOSE_FILE" build --no-cache --parallel
+    # Check if optimized build script exists and use it if available (unless forced to use standard)
+    if [ "$USE_STANDARD_BUILD" = false ] && [ -f "./scripts/build-optimized.sh" ]; then
+        log_info "Using optimized build script..."
+        chmod +x ./scripts/build-optimized.sh
+        ./scripts/build-optimized.sh
+    else
+        log_info "Using standard docker-compose build..."
+        # Build images with no cache for production
+        docker-compose -f "$COMPOSE_FILE" build --no-cache --parallel
+    fi
+    
+    # Show built images
+    log_info "Built images:"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | head -n1  # Header
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep -E "(qds-frontend|qds-backend)" || log_info "No application images found"
     
     log_info "Docker images built successfully"
+}
+
+validate_env_vars() {
+    log_info "Validating environment variables..."
+    
+    # List of critical environment variables
+    CRITICAL_VARS=(
+        "NODE_ENV"
+        "DB_NAME"
+        "DB_USER"
+        "DB_HOST"
+        "DOMAIN"
+        "NEXT_PUBLIC_API_URL"
+    )
+    
+    local missing_vars=()
+    
+    for var in "${CRITICAL_VARS[@]}"; do
+        if [ -z "${!var:-}" ]; then
+            missing_vars+=("$var")
+        fi
+    done
+    
+    if [ ${#missing_vars[@]} -gt 0 ]; then
+        log_error "Missing critical environment variables:"
+        for var in "${missing_vars[@]}"; do
+            log_error "  - $var"
+        done
+        exit 1
+    fi
+    
+    log_info "Environment validation completed"
+}
+
+cleanup_networks() {
+    log_info "Cleaning up conflicting networks..."
+    
+    # Check if there are any conflicting networks
+    local project_name=$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+    local network_name="${project_name}_app-network"
+    
+    # Remove existing network if it exists and has conflicts
+    if docker network ls --format "{{.Name}}" | grep -q "^${network_name}$"; then
+        log_info "Removing existing network: $network_name"
+        docker network rm "$network_name" 2>/dev/null || true
+    fi
+    
+    # Clean up any orphaned networks from previous deployments
+    docker network prune -f >/dev/null 2>&1 || true
+    
+    log_info "Network cleanup completed"
+}
+
+setup_data_directories() {
+    log_info "Setting up data directories..."
+    
+    # Get data path from environment or use default
+    local data_path="${DATA_PATH:-./data}"
+    
+    # Create required data directories
+    local directories=(
+        "$data_path/postgres"
+        "$data_path/redis"
+        "$data_path/nginx"
+        "$data_path/prometheus"
+        "$data_path/grafana"
+        "$data_path/loki"
+    )
+    
+    for dir in "${directories[@]}"; do
+        if [ ! -d "$dir" ]; then
+            log_info "Creating directory: $dir"
+            mkdir -p "$dir"
+            
+            # Set appropriate permissions
+            case "$(basename "$dir")" in
+                "postgres")
+                    # PostgreSQL needs specific ownership
+                    chmod 700 "$dir"
+                    ;;
+                "grafana")
+                    # Grafana needs specific ownership
+                    chmod 755 "$dir"
+                    ;;
+                *)
+                    chmod 755 "$dir"
+                    ;;
+            esac
+        else
+            log_info "Directory already exists: $dir"
+        fi
+    done
+    
+    log_info "Data directories setup completed"
 }
 
 deploy() {
     log_info "Deploying application..."
     
-    # Load environment variables
-    export $(cat "$ENV_FILE" | xargs)
+    # Load environment variables (filter out comments and empty lines)
+    if [ -f "$ENV_FILE" ]; then
+        # Use a more robust method to load environment variables
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                export "$line"
+            fi
+        done < <(grep -v '^#' "$ENV_FILE" | grep -v '^$')
+        log_info "Environment variables loaded from $ENV_FILE"
+        
+        # Validate critical environment variables
+        validate_env_vars
+    else
+        log_error "Environment file $ENV_FILE not found"
+        exit 1
+    fi
+    
+    # Clean up networks to avoid conflicts
+    cleanup_networks
+    
+    # Setup data directories
+    setup_data_directories
     
     # Stop existing containers
     docker-compose -f "$COMPOSE_FILE" down --remove-orphans
@@ -140,8 +268,15 @@ run_health_checks() {
 cleanup() {
     log_info "Cleaning up unused Docker resources..."
     
-    # Remove unused images
+    # Remove unused images (but keep our built images)
     docker image prune -f
+    
+    # Remove dangling images not related to our services
+    docker images -f "dangling=true" -q | xargs -r docker rmi
+    
+    # Show remaining images for our services
+    log_info "Current application images:"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep -E "(qds-frontend|qds-backend)" || log_info "No application images found"
     
     # Remove unused volumes (be careful with this in production)
     # docker volume prune -f
@@ -152,6 +287,10 @@ cleanup() {
 show_status() {
     log_info "Application status:"
     docker-compose -f "$COMPOSE_FILE" ps
+    
+    log_info "Application images:"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | head -n1  # Header
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(qds-frontend|qds-backend)" || log_info "No application images found"
     
     log_info "Resource usage:"
     docker stats --no-stream
@@ -178,6 +317,10 @@ case "${1:-deploy}" in
     "deploy")
         main
         ;;
+    "deploy-standard")
+        USE_STANDARD_BUILD=true
+        main
+        ;;
     "status")
         show_status
         ;;
@@ -196,13 +339,14 @@ case "${1:-deploy}" in
         run_health_checks
         ;;
     *)
-        echo "Usage: $0 {deploy|status|logs|stop|restart|health}"
-        echo "  deploy  - Deploy the application (default)"
-        echo "  status  - Show application status"
-        echo "  logs    - Show application logs"
-        echo "  stop    - Stop the application"
-        echo "  restart - Restart the application"
-        echo "  health  - Run health checks"
+        echo "Usage: $0 {deploy|deploy-standard|status|logs|stop|restart|health}"
+        echo "  deploy          - Deploy the application using optimized build (default)"
+        echo "  deploy-standard - Deploy the application using standard docker-compose build"
+        echo "  status          - Show application status"
+        echo "  logs            - Show application logs"
+        echo "  stop            - Stop the application"
+        echo "  restart         - Restart the application"
+        echo "  health          - Run health checks"
         exit 1
         ;;
 esac

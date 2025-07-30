@@ -22,7 +22,8 @@ interface ApiError {
   retry_after?: number;
   path?: string;
   method?: string;
-  status_code: number;
+  request_id?: string;
+  timestamp?: string;
 }
 
 /**
@@ -41,7 +42,7 @@ export function formatApiError(error: unknown): string {
     
     // Check for new backend error format
     if (apiError.type && apiError.code && apiError.message) {
-      return getErrorMessage(apiError.type, apiError.code, apiError.message, apiError.status_code);
+      return getErrorMessage(apiError.type, apiError.code, apiError.message, apiError.status_code || 0);
     }
     
     // Handle legacy format
@@ -169,7 +170,7 @@ export function isServerError(error: unknown): boolean {
   if (typeof error === 'object' && error !== null) {
     const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
-    return status >= 500 && status < 600;
+    return status !== undefined && status >= 500 && status < 600;
   }
   
   return false;
@@ -184,7 +185,7 @@ export function isClientError(error: unknown): boolean {
   if (typeof error === 'object' && error !== null) {
     const apiError = error as ApiError;
     const status = apiError.status || apiError.status_code;
-    return status >= 400 && status < 500;
+    return status !== undefined && status >= 400 && status < 500;
   }
   
   return false;
@@ -205,7 +206,7 @@ export function isRetryableError(error: unknown): boolean {
     const status = apiError.status || apiError.status_code;
     
     // Retry on server errors and rate limiting
-    return status === 429 || status >= 500;
+    return status !== undefined && (status === 429 || status >= 500);
   }
   
   return false;

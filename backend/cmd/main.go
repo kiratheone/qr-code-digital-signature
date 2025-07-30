@@ -28,9 +28,10 @@ func main() {
 		return
 	}
 
-	// Load environment variables
+	// Load environment variables from .env file if it exists (optional)
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		// This is expected in containerized environments where env vars are passed directly
+		log.Println("No .env file found - using environment variables from container")
 	}
 
 	// Load configuration

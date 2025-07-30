@@ -1,7 +1,8 @@
 'use client';
 
 import React, { Component, ReactNode } from 'react';
-import { ErrorFallback, ErrorFallbackProps } from './ErrorFallback';
+import { ErrorFallback } from './ErrorFallback';
+import { ErrorFallbackProps } from './ErrorBoundary';
 import { ErrorRecovery } from './ErrorRecovery';
 
 
@@ -62,9 +63,8 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     const enhancedErrorInfo: ErrorInfo = {
-      componentStack: errorInfo.componentStack,
+      componentStack: errorInfo.componentStack || '',
       errorBoundary: this.props.name || 'EnhancedErrorBoundary',
-      errorBoundaryStack: errorInfo.errorBoundaryStack,
     };
 
     this.setState({

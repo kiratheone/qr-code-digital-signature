@@ -1,7 +1,6 @@
 package services
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -9,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/unidoc/unipdf/v3/common/license"
 	"github.com/unidoc/unipdf/v3/model"
@@ -64,7 +64,7 @@ func (s *PDFServiceImpl) ValidatePDFFromReader(ctx context.Context, reader io.Re
 // validatePDFContent validates the actual PDF content
 func (s *PDFServiceImpl) validatePDFContent(ctx context.Context, pdfData []byte) error {
 	// Check if data is a valid PDF by attempting to parse it
-	reader, err := model.NewPdfReader(pdfData)
+	reader, err := model.NewPdfReader(bytes.NewReader(pdfData))
 	if err != nil {
 		return fmt.Errorf("invalid PDF format: %w", err)
 	}
@@ -136,7 +136,7 @@ func (s *PDFServiceImpl) GetPDFInfo(ctx context.Context, pdfData []byte) (*servi
 	}
 
 	// Parse PDF
-	reader, err := model.NewPdfReader(pdfData)
+	reader, err := model.NewPdfReader(bytes.NewReader(pdfData))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing PDF: %w", err)
 	}
@@ -173,19 +173,16 @@ func (s *PDFServiceImpl) GetPDFInfo(ctx context.Context, pdfData []byte) (*servi
 
 // init initializes the UniDoc license if available
 func init() {
-	// This is where you would set your UniDoc license key if you have one
-	// For production use, you should obtain a license from https://unidoc.io/
-	// license.SetMeteredKey("YOUR_METERED_LICENSE_KEY")
-	
-	// For development/testing, we'll use the trial license
-	// This will have limitations but works for our implementation
-	err := license.SetMeteredKey(`
-		Company: UniDoc Trial
-		License type: Trial
-		Expiration date: 2023-10-30
-		UniPDF version: 3
-	`)
-	if err != nil {
-		fmt.Printf("Error setting UniDoc license: %v\n", err)
+	// Try to set license from environment variable first
+	if licenseKey := os.Getenv("UNIDOC_LICENSE_KEY"); licenseKey != "" {
+		err := license.SetMeteredKey(licenseKey)
+		if err != nil {
+			fmt.Printf("Error setting UniDoc license from env: %v\n", err)
+		}
+		return
 	}
+	
+	// For development/testing, we can continue without a license
+	// This will add watermarks but the functionality will work
+	fmt.Println("No UniDoc license key provided - continuing with unlicensed version (will have watermarks)")
 }

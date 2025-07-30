@@ -1,6 +1,7 @@
 package di
 
 import (
+	"context"
 	"digital-signature-system/internal/config"
 	"digital-signature-system/internal/domain/repositories"
 	"digital-signature-system/internal/domain/services"
@@ -10,6 +11,16 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// auditServiceAdapter adapts the infrastructure AuditService to the domain interface
+type auditServiceAdapter struct {
+	service *infraServices.AuditService
+}
+
+// LogAuthEvent adapts the method signature from string to AuditEventType
+func (a *auditServiceAdapter) LogAuthEvent(ctx context.Context, eventType string, userID, ip string, success bool, details map[string]interface{}) {
+	a.service.LogAuthEvent(ctx, infraServices.AuditEventType(eventType), userID, ip, success, details)
+}
 
 // Container holds all dependencies
 type Container struct {
@@ -68,7 +79,11 @@ func (c *Container) initRepositories() {
 
 // Initialize services
 func (c *Container) initServices() {
-	c.signatureService = infraServices.NewSignatureService(c.config)
+	var err error
+	c.signatureService, err = infraServices.NewSignatureService(c.config)
+	if err != nil {
+		panic("Failed to initialize signature service: " + err.Error())
+	}
 	c.hashService = infraServices.NewHashService()
 	c.passwordService = infraServices.NewPasswordService()
 	c.tokenService = infraServices.NewTokenService(c.config)
@@ -91,7 +106,6 @@ func (c *Container) initServices() {
 		FlushInterval: c.config.GetDuration("AUDIT_FLUSH_INTERVAL", 5*time.Second),
 	}
 	
-	var err error
 	c.auditService, err = infraServices.NewAuditService(auditConfig)
 	if err != nil {
 		// Log error but don't fail startup - audit is important but not critical
@@ -125,13 +139,16 @@ func (c *Container) initServices() {
 
 // Initialize use cases
 func (c *Container) initUseCases() {
+	// Create audit service adapter
+	auditAdapter := &auditServiceAdapter{service: c.auditService}
+	
 	c.authUseCase = usecases.NewAuthUseCase(
 		c.userRepo,
 		c.sessionRepo,
 		c.passwordService,
 		c.tokenService,
 		24*time.Hour, // Session duration
-		c.auditService,
+		auditAdapter,
 		c.monitoringService,
 	)
 	

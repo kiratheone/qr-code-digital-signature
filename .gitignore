@@ -59,3 +59,9 @@ coverage/
 *.pid
 *.seed
 *.pid.lock
+
+# Data directories (keep structure but ignore content)
+data/*/
+!data/*/.gitkeep
+data/**/*
+!data/**/.gitkeep

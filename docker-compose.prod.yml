@@ -66,6 +66,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-digital_signature}
       - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
       - DB_SSL_MODE=${DB_SSL_MODE:-require}
       - DB_MAX_CONNECTIONS=${DB_MAX_CONNECTIONS:-20}
       - DB_MAX_IDLE_CONNECTIONS=${DB_MAX_IDLE_CONNECTIONS:-5}
@@ -78,6 +79,9 @@ services:
       - UPLOAD_RATE_LIMIT=${UPLOAD_RATE_LIMIT:-5}
       - UPLOAD_RATE_WINDOW=${UPLOAD_RATE_WINDOW:-60}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE:-52428800}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - PUBLIC_KEY=${PUBLIC_KEY}
       - JWT_EXPIRY=${JWT_EXPIRY:-24h}
       - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY:-168h}
       - SESSION_TIMEOUT=${SESSION_TIMEOUT:-3600}
@@ -382,48 +386,18 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/postgres
   redis_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/redis
   nginx_logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/nginx
   prometheus_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/prometheus
   grafana_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/grafana
   loki_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH:-./data}/loki
 
 networks:
   app-network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.23.0.0/16
     driver_opts:
       com.docker.network.bridge.name: br-digsig
 

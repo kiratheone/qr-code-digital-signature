@@ -10,7 +10,7 @@ export default function DocumentUploadPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{success?: DocumentUploadResponse; error?: string}>({}); 
 
-  const handleSubmit = async (data: DocumentUploadRequest) => {
+  const handleSubmit = async (data: DocumentUploadRequest): Promise<void> => {
     setIsLoading(true);
     setResult({});
     
@@ -19,7 +19,6 @@ export default function DocumentUploadPage() {
       const response = await uploadDocument(data);
       
       setResult({ success: response });
-      return response;
     } catch (error) {
       console.error('Error signing document:', error);
       setResult({ 

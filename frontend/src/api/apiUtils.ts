@@ -165,9 +165,7 @@ export class RequestQueue {
   private static instance: RequestQueue;
   private queue: Array<{
     id: string;
-    request: () => Promise<unknown>;
-    resolve: (value: unknown) => void;
-    reject: (error: unknown) => void;
+    execute: () => Promise<void>;
   }> = [];
   private processing = false;
 
@@ -179,16 +177,19 @@ export class RequestQueue {
   }
 
   async enqueue<T>(request: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       const id = Math.random().toString(36).substr(2, 9);
       
-      this.queue.push({
-        id,
-        request,
-        resolve,
-        reject,
-      });
+      const execute = async () => {
+        try {
+          const result = await request();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
       
+      this.queue.push({ id, execute });
       this.processQueue();
     });
   }
@@ -206,10 +207,10 @@ export class RequestQueue {
       if (!item) continue;
 
       try {
-        const result = await item.request();
-        item.resolve(result);
+        await item.execute();
       } catch (error) {
-        item.reject(error);
+        // Error handling is done within the execute function
+        console.warn('Queue item failed:', error);
       }
     }
 
@@ -217,9 +218,7 @@ export class RequestQueue {
   }
 
   clear() {
-    this.queue.forEach(item => {
-      item.reject(new Error('Queue cleared'));
-    });
+    // Clear the queue - individual promises will handle their own rejection
     this.queue = [];
   }
 }

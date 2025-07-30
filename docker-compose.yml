@@ -23,9 +23,9 @@ services:
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=digital_signature
-      - DB_USER=postgres
-      - DB_PASSWORD=password
+      - DB_NAME=${DB_NAME:-digital_signature}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - PUBLIC_KEY=${PUBLIC_KEY}
       - JWT_SECRET=${JWT_SECRET:-your-secret-key}
@@ -37,9 +37,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=digital_signature
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${DB_NAME:-digital_signature}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

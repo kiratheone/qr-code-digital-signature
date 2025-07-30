@@ -3,11 +3,8 @@ package middleware
 import (
 	"digital-signature-system/internal/infrastructure/validation"
 	"fmt"
-	"mime/multipart"
-	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
@@ -16,16 +18,21 @@ interface DocumentUploadFormProps {
   isLoading?: boolean;
 }
 
+// Form-specific type that allows optional file for form state
+interface DocumentUploadFormData extends Omit<DocumentUploadRequest, 'file'> {
+  file?: File;
+}
+
 export default function DocumentUploadForm({ onSubmit, isLoading = false }: DocumentUploadFormProps) {
   const [uploadState, setUploadState] = useState<UploadProgressState>({
     isUploading: false,
     progress: 0,
   });
   const [showPositionOptions, setShowPositionOptions] = useState(false);
-  const [submitError, setSubmitError] = useState<unknown>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { showSuccess, showError } = useNotificationHelpers();
   
-  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<DocumentUploadRequest>({
+  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<DocumentUploadFormData>({
     defaultValues: {
       position: {
         page: undefined, // Default: last page
@@ -94,20 +101,38 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
     }
   }, [fileRejections]);
 
-  const handleFormSubmit = async (data: DocumentUploadRequest) => {
+  const handleFormSubmit = async (data: DocumentUploadFormData) => {
+    let progressInterval: NodeJS.Timeout | undefined;
+    
     try {
+      // Validate required fields
+      if (!data.file) {
+        throw new Error('Please select a file to upload');
+      }
+      if (!data.issuer) {
+        throw new Error('Issuer name is required');
+      }
+      
+      // Create validated request object
+      const validatedData: DocumentUploadRequest = {
+        file: data.file,
+        issuer: data.issuer,
+        description: data.description,
+        position: data.position,
+      };
+      
       setUploadState({ isUploading: true, progress: 0 });
       setSubmitError(null);
       
       // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setUploadState(prev => ({
           ...prev,
           progress: Math.min(prev.progress + 10, 90)
         }));
       }, 300);
       
-      await onSubmit(data);
+      await onSubmit(validatedData);
       
       clearInterval(progressInterval);
       setUploadState({
@@ -115,8 +140,8 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
         progress: 100,
         success: {
           id: 'temp-id', // This will be replaced by actual response
-          filename: data.file.name,
-          issuer: data.issuer,
+          filename: validatedData.file.name,
+          issuer: validatedData.issuer,
           documentHash: 'hash-placeholder',
           createdAt: new Date().toISOString(),
           status: 'success'
@@ -126,24 +151,36 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
       showSuccess('Document Uploaded', 'Your document has been successfully signed and is ready for download.');
       
     } catch (error) {
-      clearInterval(progressInterval);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       setUploadState(prev => ({
         ...prev,
         isUploading: false,
         error: error instanceof Error ? error.message : 'Failed to upload document'
       }));
-      setSubmitError(error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to upload document');
       showError('Upload Failed', 'There was an error uploading your document. Please try again.');
     }
   };
 
   const handleRetry = async () => {
     if (selectedFile) {
-      const formData = {
+      const issuer = watch('issuer');
+      const description = watch('description');
+      const position = watch('position');
+      
+      // Validate required fields
+      if (!issuer) {
+        showError('Validation Error', 'Issuer name is required');
+        return;
+      }
+      
+      const formData: DocumentUploadRequest = {
         file: selectedFile,
-        issuer: watch('issuer'),
-        description: watch('description'),
-        position: watch('position'),
+        issuer,
+        description,
+        position,
       };
       await handleFormSubmit(formData);
     }
@@ -208,7 +245,7 @@ export default function DocumentUploadForm({ onSubmit, isLoading = false }: Docu
                   className="mt-2 text-xs text-red-600 hover:text-red-800"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setValue('file', undefined as File | undefined);
+                    setValue('file', undefined);
                   }}
                 >
                   Remove file
