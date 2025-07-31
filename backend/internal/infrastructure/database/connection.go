@@ -19,6 +19,17 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Configure connection pool
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
+
+	// Set maximum number of open connections (as per design: max 10 connections)
+	sqlDB.SetMaxOpenConns(10)
+	// Set maximum number of idle connections
+	sqlDB.SetMaxIdleConns(5)
+
 	// Auto-migrate the schema
 	if err := db.AutoMigrate(
 		&entities.User{},
