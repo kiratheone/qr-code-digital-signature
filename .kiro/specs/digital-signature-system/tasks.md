@@ -7,15 +7,15 @@
   - Configure environment variables and simple development scripts
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 2. Implement database schema and models - Simple approach
-- [ ] 2.1 Create PostgreSQL database schema with GORM auto-migrate
+- [x] 2. Implement database schema and models - Simple approach
+- [x] 2.1 Create PostgreSQL database schema with GORM auto-migrate
   - Create User, Session, Document entities with GORM tags
   - Use GORM auto-migrate instead of separate migration files
   - Create basic database indexes for user_id and document_hash
   - Setup simple database connection
   - _Requirements: 3.2, 5.4, 8.1_
 
-- [ ] 2.2 Implement simple repository layer
+- [x] 2.2 Implement simple repository layer
   - Create repository interfaces in domain/repositories
   - Implement concrete repositories in infrastructure/database
   - Use simple constructor injection (no complex DI container)
