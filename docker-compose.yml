@@ -8,7 +8,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://qds-backend:8000
+      - NEXT_PUBLIC_API_URL=http://qds-backend:${PORT:-8000}
     depends_on:
       - qds-backend
     networks:
@@ -19,16 +19,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     environment:
-      - PORT=8000
+      - PORT=${PORT:-8000}
       - DB_HOST=qds-postgres
-      - DB_PORT=5432
-      - DB_NAME=digital_signature
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_SSL_MODE=disable
-      - JWT_SECRET=your-jwt-secret-key-change-in-production
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_SSL_MODE=${DB_SSL_MODE:-disable}
+      - JWT_SECRET=${JWT_SECRET}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - PUBLIC_KEY=${PUBLIC_KEY}
     depends_on:
@@ -40,15 +40,15 @@ services:
   qds-postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_DB=digital_signature
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
