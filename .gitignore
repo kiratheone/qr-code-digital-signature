@@ -1,0 +1,160 @@
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# RSA Keys (Security - never commit private keys)
+*.pem
+private_key.pem
+public_key.pem
+keys/
+
+# Go Backend
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/bin/
+backend/tmp/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Air live reload
+tmp/
+
+# Frontend (Next.js)
+# Dependencies
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+# Production builds
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+
+# Runtime data
+frontend/pids
+frontend/*.pid
+frontend/*.seed
+frontend/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+frontend/coverage/
+frontend/.nyc_output
+
+# ESLint cache
+frontend/.eslintcache
+
+# Optional npm cache directory
+frontend/.npm
+
+# Optional REPL history
+frontend/.node_repl_history
+
+# Output of 'npm pack'
+frontend/*.tgz
+
+# Yarn Integrity file
+frontend/.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+frontend/.cache
+frontend/.parcel-cache
+
+# Next.js build output
+frontend/.next
+
+# Nuxt.js build / generate output
+frontend/.nuxt
+frontend/dist
+
+# Storybook build outputs
+frontend/.out
+frontend/.storybook-out
+
+# Temporary folders
+frontend/tmp/
+frontend/temp/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Docker
+# Docker volumes and data
+docker-data/
+postgres-data/
+uploads/
+documents/
+
+# Docker override files
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Application specific
+# Uploaded documents (if stored locally)
+storage/
+uploads/
+documents/
+signed_documents/
+
+# Certificates (development)
+*.crt
+*.key
+*.p12
+*.pfx
+
+# Testing
+test-results/
+playwright-report/
+test-results.xml
+
+# Temporary files
+*.tmp
+*.temp

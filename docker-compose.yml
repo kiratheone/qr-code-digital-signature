@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  qds-frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://qds-backend:8000
+    depends_on:
+      - qds-backend
+    networks:
+      - app-network
+
+  qds-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DB_HOST=qds-postgres
+      - DB_PORT=5432
+      - DB_NAME=digital_signature
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_SSL_MODE=disable
+      - JWT_SECRET=your-jwt-secret-key-change-in-production
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - PUBLIC_KEY=${PUBLIC_KEY}
+    depends_on:
+      qds-postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  qds-postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=digital_signature
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
