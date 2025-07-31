@@ -88,7 +88,7 @@ jobs:
         name: backend-coverage
 
     - name: Archive test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: backend-test-results
@@ -140,7 +140,7 @@ jobs:
         name: frontend-coverage
 
     - name: Archive test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: frontend-test-results
@@ -344,7 +344,7 @@ jobs:
         ./scripts/run_performance_tests.sh benchmarks
 
     - name: Archive performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-test-results
@@ -360,15 +360,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
+    - name: Set up Go
+      uses: actions/setup-go@v4
       with:
-        args: '-fmt sarif -out gosec-results.sarif ./backend/...'
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install Gosec
+      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
+    - name: Run Gosec Security Scanner
+      working-directory: ./backend
+      run: |
+        gosec -fmt sarif -out gosec-results.sarif ./...
 
     - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: gosec-results.sarif
+        sarif_file: backend/gosec-results.sarif
 
     - name: Run npm audit
       working-directory: ./frontend
