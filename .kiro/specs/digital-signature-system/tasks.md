@@ -22,15 +22,15 @@
   - Write focused unit tests for business-critical operations only
   - _Requirements: 3.1, 3.2, 3.4, 8.1_
 
-- [ ] 3. Implement core cryptographic services
-- [ ] 3.1 Create digital signature service
+- [x] 3. Implement core cryptographic services
+- [x] 3.1 Create digital signature service
   - Implement RSA key pair generation and management
   - Create document hash calculation using SHA-256
   - Implement digital signature creation and verification functions
   - Write comprehensive unit tests for cryptographic operations
   - _Requirements: 1.1, 1.2, 1.3, 6.1, 6.3_
 
-- [ ] 3.2 Implement secure key management
+- [x] 3.2 Implement secure key management
   - Create secure key storage using environment variables
   - Implement key loading and validation mechanisms
   - Add key rotation capability for future security updates

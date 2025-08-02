@@ -223,3 +223,176 @@ func TestDocumentRepository_GetByUserID(t *testing.T) {
 		t.Errorf("Expected total 3, got %d", total)
 	}
 }
+
+func TestDocumentRepository_GetByID(t *testing.T) {
+	db := setupDocumentTestDB(t)
+	repo := NewDocumentRepository(db)
+	ctx := context.Background()
+
+	// Create test user first
+	user := &entities.User{
+		ID:           uuid.New().String(),
+		Username:     "testuser",
+		PasswordHash: "hashedpassword",
+		FullName:     "Test User",
+		Email:        "test@example.com",
+		Role:         "user",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+	db.Create(user)
+
+	// Create test document
+	docID := uuid.New().String()
+	doc := &entities.Document{
+		ID:            docID,
+		UserID:        user.ID,
+		Filename:      "test.pdf",
+		Issuer:        "Test Issuer",
+		DocumentHash:  "testhash123",
+		SignatureData: "testsignature",
+		QRCodeData:    "testqrcode",
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+		FileSize:      1024,
+		Status:        "active",
+	}
+	db.Create(doc)
+
+	// Test GetByID
+	result, err := repo.GetByID(ctx, docID)
+	if err != nil {
+		t.Errorf("GetByID() error = %v", err)
+	}
+	if result == nil {
+		t.Error("Expected document, got nil")
+	}
+	if result.ID != docID {
+		t.Errorf("Expected ID %s, got %s", docID, result.ID)
+	}
+	if result.Filename != "test.pdf" {
+		t.Errorf("Expected filename 'test.pdf', got %s", result.Filename)
+	}
+
+	// Test non-existent ID
+	result, err = repo.GetByID(ctx, "nonexistent")
+	if err != nil {
+		t.Errorf("GetByID() error = %v", err)
+	}
+	if result != nil {
+		t.Error("Expected nil for non-existent ID")
+	}
+}
+
+func TestDocumentRepository_Update(t *testing.T) {
+	db := setupDocumentTestDB(t)
+	repo := NewDocumentRepository(db)
+	ctx := context.Background()
+
+	// Create test user first
+	user := &entities.User{
+		ID:           uuid.New().String(),
+		Username:     "testuser",
+		PasswordHash: "hashedpassword",
+		FullName:     "Test User",
+		Email:        "test@example.com",
+		Role:         "user",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+	db.Create(user)
+
+	// Create test document
+	doc := &entities.Document{
+		ID:            uuid.New().String(),
+		UserID:        user.ID,
+		Filename:      "test.pdf",
+		Issuer:        "Test Issuer",
+		DocumentHash:  "testhash123",
+		SignatureData: "testsignature",
+		QRCodeData:    "testqrcode",
+		CreatedAt:     time.Now(),
+		UpdatedAt:    time.Now(),
+		FileSize:      1024,
+		Status:        "active",
+	}
+	db.Create(doc)
+
+	// Update document
+	doc.Status = "archived"
+	doc.Issuer = "Updated Issuer"
+	doc.UpdatedAt = time.Now()
+
+	err := repo.Update(ctx, doc)
+	if err != nil {
+		t.Errorf("Update() error = %v", err)
+	}
+
+	// Verify update
+	var updated entities.Document
+	db.Where("id = ?", doc.ID).First(&updated)
+	if updated.Status != "archived" {
+		t.Errorf("Expected status 'archived', got %s", updated.Status)
+	}
+	if updated.Issuer != "Updated Issuer" {
+		t.Errorf("Expected issuer 'Updated Issuer', got %s", updated.Issuer)
+	}
+}
+
+func TestDocumentRepository_Delete(t *testing.T) {
+	db := setupDocumentTestDB(t)
+	repo := NewDocumentRepository(db)
+	ctx := context.Background()
+
+	// Create test user first
+	user := &entities.User{
+		ID:           uuid.New().String(),
+		Username:     "testuser",
+		PasswordHash: "hashedpassword",
+		FullName:     "Test User",
+		Email:        "test@example.com",
+		Role:         "user",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+	db.Create(user)
+
+	// Create test document
+	docID := uuid.New().String()
+	doc := &entities.Document{
+		ID:            docID,
+		UserID:        user.ID,
+		Filename:      "test.pdf",
+		Issuer:        "Test Issuer",
+		DocumentHash:  "testhash123",
+		SignatureData: "testsignature",
+		QRCodeData:    "testqrcode",
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+		FileSize:      1024,
+		Status:        "active",
+	}
+	db.Create(doc)
+
+	// Delete document
+	err := repo.Delete(ctx, docID)
+	if err != nil {
+		t.Errorf("Delete() error = %v", err)
+	}
+
+	// Verify deletion
+	var count int64
+	db.Model(&entities.Document{}).Where("id = ?", docID).Count(&count)
+	if count != 0 {
+		t.Errorf("Expected 0 documents after deletion, got %d", count)
+	}
+
+	// Test deleting non-existent document (should not error)
+	err = repo.Delete(ctx, "nonexistent")
+	if err != nil {
+		t.Errorf("Delete() error for non-existent document = %v", err)
+	}
+}
