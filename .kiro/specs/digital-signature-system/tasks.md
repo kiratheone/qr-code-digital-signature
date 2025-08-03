@@ -135,8 +135,8 @@
   - Write integration tests for critical user flows
   - _Requirements: 7.3, 8.2_
 
-- [ ] 8. Implement simple API integration and state management
-- [ ] 8.1 Setup simple API client and React Query
+- [x] 8. Implement simple API integration and state management
+- [x] 8.1 Setup simple API client and React Query
   - Create simple ApiClient class in lib/api/ with fetch
   - Implement React Query for basic caching and state management
   - Add simple error handling (no complex retry logic)
@@ -144,7 +144,7 @@
   - Write tests for service layer (skip API client tests)
   - _Requirements: 7.2, 7.5_
 
-- [ ] 8.2 Implement simple frontend routing
+- [x] 8.2 Implement simple frontend routing
   - Setup Next.js App Router for all pages
   - Create simple navigation components
   - Implement basic protected routes with authentication

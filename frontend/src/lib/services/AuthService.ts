@@ -173,6 +173,11 @@ export class AuthService {
     localStorage.setItem(AuthService.TOKEN_KEY, token);
     localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
     this.apiClient.setToken(token);
+    
+    // Also store in cookie for middleware (simple implementation)
+    if (typeof document !== 'undefined') {
+      document.cookie = `auth_token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
+    }
   }
 
   /**
@@ -189,6 +194,11 @@ export class AuthService {
     localStorage.removeItem(AuthService.TOKEN_KEY);
     localStorage.removeItem(AuthService.USER_KEY);
     this.apiClient.setToken(null);
+    
+    // Also clear cookie
+    if (typeof document !== 'undefined') {
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
   }
 
   /**
