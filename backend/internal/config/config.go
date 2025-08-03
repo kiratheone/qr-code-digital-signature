@@ -7,16 +7,18 @@ import (
 )
 
 type Config struct {
-	Port       string
-	DBHost     string
-	DBPort     string
-	DBName     string
-	DBUser     string
-	DBPassword string
-	DBSSLMode  string
-	JWTSecret  string
-	PrivateKey string
-	PublicKey  string
+	Port           string
+	DBHost         string
+	DBPort         string
+	DBName         string
+	DBUser         string
+	DBPassword     string
+	DBSSLMode      string
+	JWTSecret      string
+	PrivateKey     string
+	PublicKey      string
+	PrivateKeyPath string
+	PublicKeyPath  string
 }
 
 func Load() (*Config, error) {
@@ -24,16 +26,18 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	config := &Config{
-		Port:       getEnv("PORT", "8000"),
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBName:     getEnv("DB_NAME", "digital_signature"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "password"),
-		DBSSLMode:  getEnv("DB_SSL_MODE", "disable"),
-		JWTSecret:  getEnv("JWT_SECRET", "your-secret-key"),
-		PrivateKey: getEnv("PRIVATE_KEY", ""),
-		PublicKey:  getEnv("PUBLIC_KEY", ""),
+		Port:           getEnv("PORT", "8000"),
+		DBHost:         getEnv("DB_HOST", "localhost"),
+		DBPort:         getEnv("DB_PORT", "5432"),
+		DBName:         getEnv("DB_NAME", "digital_signature"),
+		DBUser:         getEnv("DB_USER", "postgres"),
+		DBPassword:     getEnv("DB_PASSWORD", "password"),
+		DBSSLMode:      getEnv("DB_SSL_MODE", "disable"),
+		JWTSecret:      getEnv("JWT_SECRET", "your-secret-key"),
+		PrivateKey:     getEnv("PRIVATE_KEY", ""),
+		PublicKey:      getEnv("PUBLIC_KEY", ""),
+		PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", "private_key.pem"),
+		PublicKeyPath:  getEnv("PUBLIC_KEY_PATH", "public_key.pem"),
 	}
 
 	return config, nil

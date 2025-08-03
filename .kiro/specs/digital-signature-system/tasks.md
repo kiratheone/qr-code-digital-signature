@@ -70,8 +70,8 @@
   - Write tests for QR code generation and PDF injection
   - _Requirements: 1.4, 2.1, 2.2, 2.4_
 
-- [ ] 6. Build backend API endpoints - Simple service layer
-- [ ] 6.1 Implement document service and handlers
+- [x] 6. Build backend API endpoints - Simple service layer
+- [x] 6.1 Implement document service and handlers
   - Create DocumentService with all document business logic (no separate use cases)
   - Implement DocumentHandler with POST /api/documents/sign endpoint
   - Add simple separation: handlers → services → repositories
@@ -79,7 +79,7 @@
   - Write unit tests for service business logic only
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.3, 7.1_
 
-- [ ] 6.2 Implement document management service and handlers
+- [x] 6.2 Implement document management service and handlers
   - Create document management logic in DocumentService
   - Implement handlers for GET /api/documents (simple pagination, no search)
   - Add GET /api/documents/:id and DELETE /api/documents/:id handlers
@@ -87,7 +87,7 @@
   - Write unit tests for business-critical service methods only
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 6.3 Implement verification service and handlers
+- [x] 6.3 Implement verification service and handlers
   - Create VerificationService with document verification business logic
   - Implement handlers for GET /api/verify/:docId and POST /api/verify/:docId/upload
   - Keep verification logic in service layer
