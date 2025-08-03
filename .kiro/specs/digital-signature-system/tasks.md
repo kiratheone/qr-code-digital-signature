@@ -37,8 +37,8 @@
   - Write tests for key management security
   - _Requirements: 6.1, 6.4_
 
-- [ ] 4. Implement simple authentication system
-- [ ] 4.1 Create authentication service (combined business logic)
+- [x] 4. Implement simple authentication system
+- [x] 4.1 Create authentication service (combined business logic)
   - Implement AuthService with login, logout, and session validation
   - Create simple password hashing and validation utilities
   - Implement basic JWT authentication (no refresh tokens for simplicity)
@@ -46,7 +46,7 @@
   - Write unit tests for authentication business logic only
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 4.2 Implement authentication handlers and middleware
+- [x] 4.2 Implement authentication handlers and middleware
   - Create simple authentication middleware for protected routes
   - Implement login and logout API handlers
   - Add basic session validation
@@ -54,15 +54,15 @@
   - Write integration tests for critical authentication flows only
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.6_
 
-- [ ] 5. Develop PDF processing capabilities
-- [ ] 5.1 Implement PDF hash calculation service
+- [x] 5. Develop PDF processing capabilities
+- [x] 5.1 Implement PDF hash calculation service
   - Create PDF file validation and processing functions
   - Implement SHA-256 hash calculation for PDF documents
   - Add support for various PDF formats and sizes up to 50MB
   - Write unit tests for PDF processing with different file types
   - _Requirements: 1.1, 7.1_
 
-- [ ] 5.2 Implement QR code generation and injection
+- [x] 5.2 Implement QR code generation and injection
   - Create QR code generation service with document metadata
   - Implement QR code injection into PDF at specified positions
   - Add support for default (last page) and custom positioning
