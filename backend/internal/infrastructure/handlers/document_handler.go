@@ -8,17 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"digital-signature-system/internal/domain/services"
+	"digital-signature-system/internal/infrastructure/logging"
+	"digital-signature-system/internal/infrastructure/validation"
 )
 
 // DocumentHandler handles HTTP requests for document operations
 type DocumentHandler struct {
 	documentService *services.DocumentService
+	validator       *validation.Validator
 }
 
 // NewDocumentHandler creates a new document handler
 func NewDocumentHandler(documentService *services.DocumentService) *DocumentHandler {
 	return &DocumentHandler{
 		documentService: documentService,
+		validator:       validation.NewValidator(),
 	}
 }
 
@@ -31,6 +35,12 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		return
 	}
 
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
+		return
+	}
+
 	// Get file from form (form parsing is handled by middleware)
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -39,10 +49,25 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Get issuer from form
+	// Validate and sanitize filename (use sanitized version from middleware if available)
+	filename := header.Filename
+	if sanitizedFilename, exists := c.Get("sanitized_filename_file"); exists {
+		filename = sanitizedFilename.(string)
+	} else {
+		// Fallback validation if middleware didn't process it
+		if sanitized, validationErr := h.validator.ValidateFilename("filename", header.Filename, true); validationErr != nil {
+			RespondWithValidationError(c, "Invalid filename", validationErr.Error())
+			return
+		} else {
+			filename = sanitized
+		}
+	}
+
+	// Get and validate issuer from form
 	issuer := c.Request.FormValue("issuer")
-	if issuer == "" {
-		RespondWithValidationError(c, "Issuer is required")
+	sanitizedIssuer, validationErr := h.validator.ValidateAndSanitizeString("issuer", issuer, 1, 100, true)
+	if validationErr != nil {
+		RespondWithValidationError(c, "Invalid issuer", validationErr.Error())
 		return
 	}
 
@@ -53,20 +78,62 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		return
 	}
 
+	// Validate file size
+	if validationErr := h.validator.ValidateFileSize("file", int64(len(pdfData)), 50<<20); validationErr != nil {
+		RespondWithValidationError(c, "Invalid file size", validationErr.Error())
+		return
+	}
+
 	// Create request
 	req := &services.SignDocumentRequest{
-		Filename: header.Filename,
-		Issuer:   issuer,
+		Filename: filename,
+		Issuer:   sanitizedIssuer,
 		PDFData:  pdfData,
 		UserID:   userID.(string),
 	}
 
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
+
 	// Sign document
 	response, err := h.documentService.SignDocument(c.Request.Context(), req)
 	if err != nil {
+		// Log failed document signing attempt
+		logging.LogDocumentOperation(
+			logging.AuditEventDocumentSign,
+			authUser.ID,
+			authUser.Username,
+			"", // No document ID for failed signing
+			c.ClientIP(),
+			"FAILURE",
+			map[string]interface{}{
+				"filename": filename,
+				"issuer": sanitizedIssuer,
+				"file_size": len(pdfData),
+				"error": err.Error(),
+				"endpoint": "/api/documents/sign",
+			},
+		)
 		MapServiceErrorToHTTP(c, err)
 		return
 	}
+
+	// Log successful document signing
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentSign,
+		authUser.ID,
+		authUser.Username,
+		response.Document.ID,
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"filename": response.Document.Filename,
+			"issuer": response.Document.Issuer,
+			"file_size": len(pdfData),
+			"endpoint": "/api/documents/sign",
+		},
+	)
 
 	// Return response without PDF data in JSON (too large)
 	c.JSON(http.StatusCreated, gin.H{
@@ -84,35 +151,77 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
+		return
+	}
+
+	// Parse query parameters with validation
 	req := &services.GetDocumentsRequest{
 		UserID: userID.(string),
 	}
 
-	// Parse page parameter
+	// Parse and validate page parameter
 	if pageStr := c.Query("page"); pageStr != "" {
-		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
-			req.Page = page
-		} else {
-			req.Page = 1
+		if sanitizedPage, validationErr := h.validator.ValidateAndSanitizeString("page", pageStr, 1, 10, false); validationErr != nil {
+			RespondWithValidationError(c, "Invalid page parameter", validationErr.Error())
+			return
+		} else if sanitizedPage != "" {
+			if page, err := strconv.Atoi(sanitizedPage); err == nil && page > 0 && page <= 1000 {
+				req.Page = page
+			} else {
+				RespondWithValidationError(c, "Page must be a positive integer between 1 and 1000")
+				return
+			}
 		}
 	} else {
 		req.Page = 1
 	}
 
-	// Parse page_size parameter
+	// Parse and validate page_size parameter
 	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
-		if pageSize, err := strconv.Atoi(pageSizeStr); err == nil && pageSize > 0 && pageSize <= 100 {
-			req.PageSize = pageSize
-		} else {
-			req.PageSize = 10
+		if sanitizedPageSize, validationErr := h.validator.ValidateAndSanitizeString("page_size", pageSizeStr, 1, 10, false); validationErr != nil {
+			RespondWithValidationError(c, "Invalid page_size parameter", validationErr.Error())
+			return
+		} else if sanitizedPageSize != "" {
+			if pageSize, err := strconv.Atoi(sanitizedPageSize); err == nil && pageSize > 0 && pageSize <= 100 {
+				req.PageSize = pageSize
+			} else {
+				RespondWithValidationError(c, "Page size must be a positive integer between 1 and 100")
+				return
+			}
 		}
 	} else {
 		req.PageSize = 10
 	}
 
-	// Parse status parameter
-	req.Status = c.Query("status")
+	// Parse and validate status parameter
+	if status := c.Query("status"); status != "" {
+		if sanitizedStatus, validationErr := h.validator.ValidateAndSanitizeString("status", status, 1, 20, false); validationErr != nil {
+			RespondWithValidationError(c, "Invalid status parameter", validationErr.Error())
+			return
+		} else {
+			// Only allow specific status values
+			allowedStatuses := []string{"active", "inactive", "deleted"}
+			validStatus := false
+			for _, allowedStatus := range allowedStatuses {
+				if sanitizedStatus == allowedStatus {
+					validStatus = true
+					break
+				}
+			}
+			if !validStatus {
+				RespondWithValidationError(c, "Status must be one of: active, inactive, deleted")
+				return
+			}
+			req.Status = sanitizedStatus
+		}
+	}
+
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
 
 	// Get documents
 	response, err := h.documentService.GetDocuments(c.Request.Context(), req)
@@ -120,6 +229,23 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		MapServiceErrorToHTTP(c, err)
 		return
 	}
+
+	// Log document list access
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentList,
+		authUser.ID,
+		authUser.Username,
+		"", // No specific document ID for list operation
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"page": req.Page,
+			"page_size": req.PageSize,
+			"status": req.Status,
+			"total_documents": len(response.Documents),
+			"endpoint": "/api/documents",
+		},
+	)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -133,19 +259,57 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
-	// Get document ID from URL parameter
-	documentID := c.Param("id")
-	if documentID == "" {
-		RespondWithValidationError(c, "Document ID is required")
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
 		return
 	}
+
+	// Get and validate document ID from URL parameter
+	documentID := c.Param("id")
+	if _, validationErr := h.validator.ValidateUUID("document_id", documentID, true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid document ID", validationErr.Error())
+		return
+	}
+
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
 
 	// Get document
 	document, err := h.documentService.GetDocumentByID(c.Request.Context(), userID.(string), documentID)
 	if err != nil {
+		// Log failed document access attempt
+		logging.LogDocumentOperation(
+			logging.AuditEventDocumentView,
+			authUser.ID,
+			authUser.Username,
+			documentID,
+			c.ClientIP(),
+			"FAILURE",
+			map[string]interface{}{
+				"error": err.Error(),
+				"endpoint": "/api/documents/" + documentID,
+			},
+		)
 		MapServiceErrorToHTTP(c, err)
 		return
 	}
+
+	// Log successful document access
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentView,
+		authUser.ID,
+		authUser.Username,
+		document.ID,
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"filename": document.Filename,
+			"issuer": document.Issuer,
+			"endpoint": "/api/documents/" + documentID,
+		},
+	)
 
 	c.JSON(http.StatusOK, gin.H{"document": document})
 }
@@ -159,19 +323,55 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	// Get document ID from URL parameter
-	documentID := c.Param("id")
-	if documentID == "" {
-		RespondWithValidationError(c, "Document ID is required")
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
 		return
 	}
+
+	// Get and validate document ID from URL parameter
+	documentID := c.Param("id")
+	if _, validationErr := h.validator.ValidateUUID("document_id", documentID, true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid document ID", validationErr.Error())
+		return
+	}
+
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
 
 	// Delete document
 	err := h.documentService.DeleteDocument(c.Request.Context(), userID.(string), documentID)
 	if err != nil {
+		// Log failed document deletion attempt
+		logging.LogDocumentOperation(
+			logging.AuditEventDocumentDelete,
+			authUser.ID,
+			authUser.Username,
+			documentID,
+			c.ClientIP(),
+			"FAILURE",
+			map[string]interface{}{
+				"error": err.Error(),
+				"endpoint": "/api/documents/" + documentID,
+			},
+		)
 		MapServiceErrorToHTTP(c, err)
 		return
 	}
+
+	// Log successful document deletion
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentDelete,
+		authUser.ID,
+		authUser.Username,
+		documentID,
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"endpoint": "/api/documents/" + documentID,
+		},
+	)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
 }

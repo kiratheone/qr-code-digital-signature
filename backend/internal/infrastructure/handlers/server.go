@@ -36,6 +36,11 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		panic("Failed to initialize logging: " + err.Error())
 	}
 
+	// Initialize audit logging
+	if err := logging.InitializeAuditLogger("logs"); err != nil {
+		panic("Failed to initialize audit logging: " + err.Error())
+	}
+
 	logger := logging.GetLogger()
 	logger.Info("Initializing server...")
 

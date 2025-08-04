@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -12,12 +11,14 @@ import (
 
 	"digital-signature-system/internal/domain/services"
 	"digital-signature-system/internal/infrastructure/logging"
+	"digital-signature-system/internal/infrastructure/validation"
 )
 
 type AuthMiddleware struct {
 	authService *services.AuthService
 	rateLimiter *rate.Limiter
 	logger      *logging.Logger
+	validator   *validation.Validator
 }
 
 func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
@@ -25,6 +26,7 @@ func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
 		authService: authService,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Second), 100), // 100 requests per second
 		logger:      logging.GetLogger(),
+		validator:   validation.NewValidator(),
 	}
 }
 
@@ -166,6 +168,19 @@ func (m *AuthMiddleware) RateLimiting() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		if !m.rateLimiter.Allow() {
 			m.logger.Warn("Rate limit exceeded for IP: %s", c.ClientIP())
+			
+			// Log security event for rate limiting
+			logging.LogSecurityEvent(
+				logging.AuditEventRateLimitExceeded,
+				c.ClientIP(),
+				c.GetHeader("User-Agent"),
+				"Rate limit exceeded",
+				map[string]interface{}{
+					"endpoint": c.Request.URL.Path,
+					"method": c.Request.Method,
+				},
+			)
+			
 			RespondWithError(c, http.StatusTooManyRequests, 
 				NewStandardError(ErrCodeRateLimitExceeded, "Too many requests"))
 			c.Abort()
@@ -202,28 +217,91 @@ func (m *AuthMiddleware) RequestLogging() gin.HandlerFunc {
 	})
 }
 
-// InputValidation middleware for basic input sanitization
+// InputValidation middleware for comprehensive input sanitization
 func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Sanitize common headers
+		// Validate and sanitize common headers
 		userAgent := c.GetHeader("User-Agent")
-		if userAgent != "" && containsSuspiciousContent(userAgent) {
-			m.logger.Warn("Suspicious User-Agent detected from IP %s: %s", c.ClientIP(), userAgent)
-			RespondWithValidationError(c, "Invalid request headers")
-			c.Abort()
-			return
+		if userAgent != "" {
+			if _, err := m.validator.ValidateAndSanitizeString("user-agent", userAgent, 0, 500, false); err != nil {
+				m.logger.Warn("Suspicious User-Agent detected from IP %s: %s", c.ClientIP(), userAgent)
+				
+				// Log security event for suspicious user agent
+				logging.LogSecurityEvent(
+					logging.AuditEventSuspiciousActivity,
+					c.ClientIP(),
+					userAgent,
+					"Suspicious User-Agent detected",
+					map[string]interface{}{
+						"validation_error": err.Error(),
+						"endpoint": c.Request.URL.Path,
+						"method": c.Request.Method,
+					},
+				)
+				
+				RespondWithValidationError(c, "Invalid request headers", err.Error())
+				c.Abort()
+				return
+			}
 		}
 
-		// Check for suspicious query parameters
+		// Validate Content-Type header for security
+		contentType := c.GetHeader("Content-Type")
+		if contentType != "" {
+			if _, err := m.validator.ValidateAndSanitizeString("content-type", contentType, 0, 100, false); err != nil {
+				m.logger.Warn("Suspicious Content-Type detected from IP %s: %s", c.ClientIP(), contentType)
+				RespondWithValidationError(c, "Invalid content type", err.Error())
+				c.Abort()
+				return
+			}
+		}
+
+		// Validate and sanitize query parameters
 		for key, values := range c.Request.URL.Query() {
+			// Validate parameter name
+			if _, err := m.validator.ValidateAndSanitizeString("query-param-name", key, 0, 50, false); err != nil {
+				m.logger.Warn("Suspicious query parameter name detected from IP %s: %s", c.ClientIP(), key)
+				RespondWithValidationError(c, "Invalid query parameter name", err.Error())
+				c.Abort()
+				return
+			}
+
+			// Validate parameter values
 			for _, value := range values {
-				if containsSuspiciousContent(value) {
-					m.logger.Warn("Suspicious query parameter detected from IP %s: %s=%s", 
+				if _, err := m.validator.ValidateAndSanitizeString("query-param-value", value, 0, 200, false); err != nil {
+					m.logger.Warn("Suspicious query parameter value detected from IP %s: %s=%s", 
 						c.ClientIP(), key, value)
-					RespondWithValidationError(c, "Invalid query parameters")
+					
+					// Log security event for suspicious query parameters
+					logging.LogSecurityEvent(
+						logging.AuditEventSuspiciousActivity,
+						c.ClientIP(),
+						c.GetHeader("User-Agent"),
+						"Suspicious query parameter detected",
+						map[string]interface{}{
+							"parameter_name": key,
+							"parameter_value": value,
+							"validation_error": err.Error(),
+							"endpoint": c.Request.URL.Path,
+							"method": c.Request.Method,
+						},
+					)
+					
+					RespondWithValidationError(c, "Invalid query parameter value", err.Error())
 					c.Abort()
 					return
 				}
+			}
+		}
+
+		// Validate URL path parameters
+		for _, param := range c.Params {
+			if _, err := m.validator.ValidateAndSanitizeString("path-param", param.Value, 0, 100, false); err != nil {
+				m.logger.Warn("Suspicious path parameter detected from IP %s: %s=%s", 
+					c.ClientIP(), param.Key, param.Value)
+				RespondWithValidationError(c, "Invalid path parameter", err.Error())
+				c.Abort()
+				return
 			}
 		}
 
@@ -231,24 +309,56 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 	}
 }
 
-// SecurityHeaders middleware adds basic security headers
+// SecurityHeaders middleware adds comprehensive security headers
 func (m *AuthMiddleware) SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Add security headers
+		// Prevent MIME type sniffing
 		c.Header("X-Content-Type-Options", "nosniff")
+		
+		// Prevent clickjacking
 		c.Header("X-Frame-Options", "DENY")
+		
+		// Enable XSS protection
 		c.Header("X-XSS-Protection", "1; mode=block")
+		
+		// Control referrer information
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Header("Content-Security-Policy", "default-src 'self'")
+		
+		// Content Security Policy
+		csp := "default-src 'self'; " +
+			"script-src 'self' 'unsafe-inline'; " +
+			"style-src 'self' 'unsafe-inline'; " +
+			"img-src 'self' data:; " +
+			"font-src 'self'; " +
+			"connect-src 'self'; " +
+			"frame-ancestors 'none'; " +
+			"base-uri 'self'; " +
+			"form-action 'self'"
+		c.Header("Content-Security-Policy", csp)
+		
+		// Strict Transport Security (HTTPS only)
+		if c.Request.TLS != nil {
+			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+		}
+		
+		// Permissions Policy (formerly Feature Policy)
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
 		
 		// Remove server information
 		c.Header("Server", "")
+		
+		// Prevent caching of sensitive responses
+		if strings.Contains(c.Request.URL.Path, "/api/") {
+			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
+		}
 		
 		c.Next()
 	}
 }
 
-// FileValidation middleware for validating file uploads
+// FileValidation middleware for comprehensive file upload validation
 func (m *AuthMiddleware) FileValidation(maxSize int64, allowedTypes []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only apply to multipart form requests
@@ -257,11 +367,11 @@ func (m *AuthMiddleware) FileValidation(maxSize int64, allowedTypes []string) gi
 			return
 		}
 
-		// Check content length
-		if c.Request.ContentLength > maxSize {
-			m.logger.Warn("File too large from IP %s: %d bytes", c.ClientIP(), c.Request.ContentLength)
+		// Validate content length
+		if err := m.validator.ValidateFileSize("request", c.Request.ContentLength, maxSize); err != nil {
+			m.logger.Warn("File validation failed from IP %s: %v", c.ClientIP(), err)
 			RespondWithError(c, http.StatusRequestEntityTooLarge,
-				NewStandardError(ErrCodeFileTooLarge, "File size exceeds maximum limit"))
+				NewStandardError(ErrCodeFileTooLarge, err.Message))
 			c.Abort()
 			return
 		}
@@ -270,20 +380,57 @@ func (m *AuthMiddleware) FileValidation(maxSize int64, allowedTypes []string) gi
 		err := c.Request.ParseMultipartForm(maxSize)
 		if err != nil {
 			m.logger.Error("Failed to parse multipart form from IP %s: %v", c.ClientIP(), err)
-			RespondWithValidationError(c, "Invalid form data")
+			RespondWithValidationError(c, "Invalid form data", err.Error())
 			c.Abort()
 			return
 		}
 
-		// Validate file types if files are present
+		// Comprehensive file validation if files are present
 		if c.Request.MultipartForm != nil && c.Request.MultipartForm.File != nil {
-			for _, fileHeaders := range c.Request.MultipartForm.File {
+			for fieldName, fileHeaders := range c.Request.MultipartForm.File {
 				for _, fileHeader := range fileHeaders {
+					// Validate filename
+					if sanitizedFilename, err := m.validator.ValidateFilename("filename", fileHeader.Filename, true); err != nil {
+						m.logger.Warn("Invalid filename from IP %s: %s - %v", c.ClientIP(), fileHeader.Filename, err)
+						RespondWithValidationError(c, "Invalid filename", err.Error())
+						c.Abort()
+						return
+					} else {
+						// Store sanitized filename for later use
+						c.Set("sanitized_filename_"+fieldName, sanitizedFilename)
+					}
+
+					// Validate content type
 					contentType := fileHeader.Header.Get("Content-Type")
-					if !isAllowedFileType(contentType, allowedTypes) {
+					if err := m.validator.ValidateContentType("content_type", contentType, allowedTypes); err != nil {
 						m.logger.Warn("Invalid file type from IP %s: %s", c.ClientIP(), contentType)
 						RespondWithError(c, http.StatusBadRequest,
-							NewStandardError(ErrCodeInvalidFile, "File type not allowed"))
+							NewStandardError(ErrCodeInvalidFile, err.Message))
+						c.Abort()
+						return
+					}
+
+					// Validate file size
+					if err := m.validator.ValidateFileSize("file", fileHeader.Size, maxSize); err != nil {
+						m.logger.Warn("File size validation failed from IP %s: %v", c.ClientIP(), err)
+						RespondWithError(c, http.StatusRequestEntityTooLarge,
+							NewStandardError(ErrCodeFileTooLarge, err.Message))
+						c.Abort()
+						return
+					}
+
+					// Additional security checks
+					if fileHeader.Size == 0 {
+						m.logger.Warn("Empty file uploaded from IP %s", c.ClientIP())
+						RespondWithValidationError(c, "Empty files are not allowed")
+						c.Abort()
+						return
+					}
+
+					// Check for suspicious file extensions in filename
+					if m.hasSuspiciousExtension(fileHeader.Filename) {
+						m.logger.Warn("Suspicious file extension from IP %s: %s", c.ClientIP(), fileHeader.Filename)
+						RespondWithValidationError(c, "File extension not allowed")
 						c.Abort()
 						return
 					}
@@ -295,44 +442,38 @@ func (m *AuthMiddleware) FileValidation(maxSize int64, allowedTypes []string) gi
 	}
 }
 
-// containsSuspiciousContent checks for common attack patterns
-func containsSuspiciousContent(input string) bool {
-	suspiciousPatterns := []string{
-		"<script",
-		"javascript:",
-		"vbscript:",
-		"onload=",
-		"onerror=",
-		"eval(",
-		"alert(",
-		"document.cookie",
-		"../",
-		"..\\",
-		"union select",
-		"drop table",
-		"insert into",
-		"delete from",
-		"update set",
+// hasSuspiciousExtension checks for potentially dangerous file extensions
+func (m *AuthMiddleware) hasSuspiciousExtension(filename string) bool {
+	// Convert to lowercase for case-insensitive comparison
+	lowerFilename := strings.ToLower(filename)
+	
+	// List of suspicious extensions that should not be allowed
+	suspiciousExtensions := []string{
+		".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js",
+		".jar", ".app", ".deb", ".pkg", ".dmg", ".rpm", ".msi",
+		".sh", ".bash", ".zsh", ".fish", ".ps1", ".psm1",
+		".php", ".asp", ".aspx", ".jsp", ".py", ".rb", ".pl",
+		".sql", ".db", ".sqlite", ".mdb",
 	}
-
-	lowerInput := strings.ToLower(input)
-	for _, pattern := range suspiciousPatterns {
-		if strings.Contains(lowerInput, pattern) {
+	
+	for _, ext := range suspiciousExtensions {
+		if strings.HasSuffix(lowerFilename, ext) {
 			return true
 		}
 	}
-
-	// Check for excessive length
-	if len(input) > 1000 {
-		return true
+	
+	// Check for double extensions (e.g., file.pdf.exe)
+	parts := strings.Split(lowerFilename, ".")
+	if len(parts) > 2 {
+		for i := 1; i < len(parts)-1; i++ {
+			for _, ext := range suspiciousExtensions {
+				if "."+parts[i] == ext {
+					return true
+				}
+			}
+		}
 	}
-
-	// Check for suspicious characters
-	suspiciousChars := regexp.MustCompile(`[<>'"&;]`)
-	if suspiciousChars.MatchString(input) {
-		return true
-	}
-
+	
 	return false
 }
 
