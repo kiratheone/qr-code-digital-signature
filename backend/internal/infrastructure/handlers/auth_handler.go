@@ -30,10 +30,7 @@ type ChangePasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
-}
+// Remove the old ErrorResponse struct as we now use StandardError from errors.go
 
 func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{
@@ -45,10 +42,7 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_request",
-			Message: "Invalid request format",
-		})
+		RespondWithValidationError(c, "Invalid request format", err.Error())
 		return
 	}
 
@@ -59,23 +53,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	response, err := h.authService.Login(c.Request.Context(), loginReq)
 	if err != nil {
-		switch err {
-		case services.ErrInvalidCredentials:
-			c.JSON(http.StatusUnauthorized, ErrorResponse{
-				Error:   "invalid_credentials",
-				Message: "Invalid username or password",
-			})
-		case services.ErrUserInactive:
-			c.JSON(http.StatusForbidden, ErrorResponse{
-				Error:   "user_inactive",
-				Message: "User account is inactive",
-			})
-		default:
-			c.JSON(http.StatusInternalServerError, ErrorResponse{
-				Error:   "internal_error",
-				Message: "An internal error occurred",
-			})
-		}
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
@@ -86,19 +64,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_request",
-			Message: "Invalid request format",
-		})
+		RespondWithValidationError(c, "Invalid request format", err.Error())
 		return
 	}
 
 	// Validate password strength
 	if err := h.authService.ValidatePassword(req.Password); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_password",
-			Message: err.Error(),
-		})
+		RespondWithValidationError(c, "Invalid password", err.Error())
 		return
 	}
 
@@ -111,18 +83,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, err := h.authService.Register(c.Request.Context(), registerReq)
 	if err != nil {
-		switch err {
-		case services.ErrUserAlreadyExists:
-			c.JSON(http.StatusConflict, ErrorResponse{
-				Error:   "user_exists",
-				Message: "Username or email already exists",
-			})
-		default:
-			c.JSON(http.StatusInternalServerError, ErrorResponse{
-				Error:   "internal_error",
-				Message: "An internal error occurred",
-			})
-		}
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
@@ -136,18 +97,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Logout(c *gin.Context) {
 	token := extractTokenFromHeader(c)
 	if token == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "missing_token",
-			Message: "Authorization token is required",
-		})
+		RespondWithValidationError(c, "Authorization token is required")
 		return
 	}
 
 	if err := h.authService.Logout(c.Request.Context(), token); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "internal_error",
-			Message: "Failed to logout",
-		})
+		RespondWithInternalError(c, "Failed to logout", err.Error())
 		return
 	}
 
@@ -160,10 +115,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	user, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "unauthorized",
-			Message: "User not authenticated",
-		})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
@@ -176,59 +128,31 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_request",
-			Message: "Invalid request format",
-		})
+		RespondWithValidationError(c, "Invalid request format", err.Error())
 		return
 	}
 
 	// Validate new password strength
 	if err := h.authService.ValidatePassword(req.NewPassword); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "invalid_password",
-			Message: err.Error(),
-		})
+		RespondWithValidationError(c, "Invalid password", err.Error())
 		return
 	}
 
 	// Get user from context
 	userInterface, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error:   "unauthorized",
-			Message: "User not authenticated",
-		})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
 	user, ok := userInterface.(*services.AuthenticatedUser)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "internal_error",
-			Message: "Invalid user context",
-		})
+		RespondWithInternalError(c, "Invalid user context")
 		return
 	}
 
 	if err := h.authService.ChangePassword(c.Request.Context(), user.ID, req.OldPassword, req.NewPassword); err != nil {
-		switch err {
-		case services.ErrUserNotFound:
-			c.JSON(http.StatusNotFound, ErrorResponse{
-				Error:   "user_not_found",
-				Message: "User not found",
-			})
-		case services.ErrInvalidCredentials:
-			c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error:   "invalid_old_password",
-				Message: "Current password is incorrect",
-			})
-		default:
-			c.JSON(http.StatusInternalServerError, ErrorResponse{
-				Error:   "internal_error",
-				Message: "Failed to change password",
-			})
-		}
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 

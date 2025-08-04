@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Port           string
+	Environment    string
 	DBHost         string
 	DBPort         string
 	DBName         string
@@ -27,6 +28,7 @@ func Load() (*Config, error) {
 
 	config := &Config{
 		Port:           getEnv("PORT", "8000"),
+		Environment:    getEnv("ENVIRONMENT", "development"),
 		DBHost:         getEnv("DB_HOST", "localhost"),
 		DBPort:         getEnv("DB_PORT", "5432"),
 		DBName:         getEnv("DB_NAME", "digital_signature"),

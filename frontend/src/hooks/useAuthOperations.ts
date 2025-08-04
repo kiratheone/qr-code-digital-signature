@@ -4,9 +4,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
 import { AuthService } from '@/lib/services';
-import { apiClient } from '@/lib/api';
-import type { User, LoginResponse, RegisterResponse } from '@/lib/types';
+import { apiClient, ApiClientError } from '@/lib/api';
+import type { LoginResponse, RegisterResponse } from '@/lib/types';
 
 // Create service instance
 const authService = new AuthService(apiClient);
@@ -23,6 +24,18 @@ export const authKeys = {
  */
 export function useAuthOperations() {
   const queryClient = useQueryClient();
+  const [lastError, setLastError] = useState<Error | ApiClientError | null>(null);
+
+  // Clear error handler
+  const clearError = useCallback(() => {
+    setLastError(null);
+  }, []);
+
+  // Error handler for mutations
+  const handleError = useCallback((error: Error | ApiClientError) => {
+    setLastError(error);
+    console.error('Auth operation failed:', error);
+  }, []);
 
   // Query for current user session
   const sessionQuery = useQuery({
@@ -72,9 +85,7 @@ export function useAuthOperations() {
       // Invalidate all queries to refetch with new auth
       queryClient.invalidateQueries();
     },
-    onError: (error) => {
-      console.error('Login failed:', error);
-    },
+    onError: handleError,
   });
 
   // Mutation for registration
@@ -105,9 +116,7 @@ export function useAuthOperations() {
       // Invalidate all queries to refetch with new auth
       queryClient.invalidateQueries();
     },
-    onError: (error) => {
-      console.error('Registration failed:', error);
-    },
+    onError: handleError,
   });
 
   // Mutation for logout
@@ -121,7 +130,7 @@ export function useAuthOperations() {
       queryClient.clear();
     },
     onError: (error) => {
-      console.error('Logout failed:', error);
+      handleError(error);
       // Still clear cache even if server logout fails
       queryClient.removeQueries({ queryKey: authKeys.all });
       queryClient.clear();
@@ -149,6 +158,7 @@ export function useAuthOperations() {
     loginError: loginMutation.error,
     registerError: registerMutation.error,
     logoutError: logoutMutation.error,
+    lastError,
     
     // Actions
     login: loginMutation.mutate,
@@ -168,6 +178,7 @@ export function useAuthOperations() {
     // Utilities
     refetchSession: sessionQuery.refetch,
     validateSession: validateSessionQuery.refetch,
+    clearError,
   };
 }
 

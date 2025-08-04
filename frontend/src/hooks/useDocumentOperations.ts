@@ -4,8 +4,9 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
 import { DocumentService } from '@/lib/services';
-import { apiClient } from '@/lib/api';
+import { apiClient, ApiClientError } from '@/lib/api';
 import type { Document, DocumentList, SignDocumentResponse } from '@/lib/types';
 
 // Create service instance
@@ -25,6 +26,18 @@ export const documentKeys = {
  */
 export function useDocumentOperations(page: number = 1, perPage: number = 10) {
   const queryClient = useQueryClient();
+  const [lastError, setLastError] = useState<Error | ApiClientError | null>(null);
+
+  // Clear error handler
+  const clearError = useCallback(() => {
+    setLastError(null);
+  }, []);
+
+  // Error handler for mutations
+  const handleError = useCallback((error: Error | ApiClientError) => {
+    setLastError(error);
+    console.error('Document operation failed:', error);
+  }, []);
 
   // Query for getting documents list
   const documentsQuery = useQuery({
@@ -47,9 +60,7 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
         data.document
       );
     },
-    onError: (error) => {
-      console.error('Document signing failed:', error);
-    },
+    onError: handleError,
   });
 
   // Mutation for deleting documents
@@ -62,9 +73,7 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
       // Invalidate documents list
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
     },
-    onError: (error) => {
-      console.error('Document deletion failed:', error);
-    },
+    onError: handleError,
   });
 
   return {
@@ -83,6 +92,7 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
     error: documentsQuery.error,
     signError: signDocumentMutation.error,
     deleteError: deleteDocumentMutation.error,
+    lastError,
     
     // Actions
     signDocument: signDocumentMutation.mutate,
@@ -90,6 +100,7 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
     
     // Utilities
     refetch: documentsQuery.refetch,
+    clearError,
     
     // Success states
     signSuccess: signDocumentMutation.isSuccess,

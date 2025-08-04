@@ -59,7 +59,8 @@ func setupTestDB(t *testing.T) *gorm.DB {
 func setupTestServer(t *testing.T) (*Server, *gorm.DB) {
 	db := setupTestDB(t)
 	cfg := &config.Config{
-		JWTSecret: "test-secret-key",
+		JWTSecret:   "test-secret-key",
+		Environment: "test",
 	}
 
 	server := NewServer(cfg, db)
@@ -93,7 +94,7 @@ func TestAuthHandler_Register(t *testing.T) {
 				Email:    "test@example.com",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 		{
 			name: "invalid request - short password",
@@ -104,7 +105,7 @@ func TestAuthHandler_Register(t *testing.T) {
 				Email:    "test@example.com",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 		{
 			name: "invalid request - invalid email",
@@ -115,7 +116,7 @@ func TestAuthHandler_Register(t *testing.T) {
 				Email:    "invalid-email",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 	}
 
@@ -131,10 +132,10 @@ func TestAuthHandler_Register(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			}
 		})
 	}
@@ -178,7 +179,7 @@ func TestAuthHandler_Login(t *testing.T) {
 				Password: "password123",
 			},
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "invalid_credentials",
+			expectedError:  ErrCodeUnauthorized,
 		},
 		{
 			name: "invalid password",
@@ -187,7 +188,7 @@ func TestAuthHandler_Login(t *testing.T) {
 				Password: "wrongpassword",
 			},
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "invalid_credentials",
+			expectedError:  ErrCodeUnauthorized,
 		},
 		{
 			name: "missing username",
@@ -195,7 +196,7 @@ func TestAuthHandler_Login(t *testing.T) {
 				Password: "password123",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 		{
 			name: "missing password",
@@ -203,7 +204,7 @@ func TestAuthHandler_Login(t *testing.T) {
 				Username: "testuser",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 	}
 
@@ -219,10 +220,10 @@ func TestAuthHandler_Login(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			} else if tt.expectedStatus == http.StatusOK {
 				var response services.LoginResponse
 				err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -273,13 +274,13 @@ func TestAuthHandler_GetProfile(t *testing.T) {
 			name:           "missing token",
 			token:          "",
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "missing_token",
+			expectedError:  ErrCodeUnauthorized,
 		},
 		{
 			name:           "invalid token",
 			token:          "invalid-token",
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "invalid_token",
+			expectedError:  ErrCodeUnauthorized,
 		},
 	}
 
@@ -296,10 +297,10 @@ func TestAuthHandler_GetProfile(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			} else if tt.expectedStatus == http.StatusOK {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -353,7 +354,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 			name:           "missing token",
 			token:          "",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "missing_token",
+			expectedError:  ErrCodeValidationFailed,
 		},
 	}
 
@@ -370,10 +371,10 @@ func TestAuthHandler_Logout(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			}
 		})
 	}
@@ -426,8 +427,8 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 				OldPassword: "wrongpassword",
 				NewPassword: "newpassword123",
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_old_password",
+			expectedStatus: http.StatusUnauthorized,
+			expectedError:  ErrCodeUnauthorized,
 		},
 		{
 			name:  "weak new password",
@@ -437,7 +438,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 				NewPassword: "weak",
 			},
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid_request",
+			expectedError:  ErrCodeValidationFailed,
 		},
 		{
 			name:  "missing token",
@@ -447,7 +448,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 				NewPassword: "newpassword123",
 			},
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "missing_token",
+			expectedError:  ErrCodeUnauthorized,
 		},
 	}
 
@@ -466,10 +467,10 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			}
 		})
 	}
@@ -519,13 +520,13 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 			name:           "missing token",
 			token:          "",
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "missing_token",
+			expectedError:  ErrCodeUnauthorized,
 		},
 		{
 			name:           "invalid token",
 			token:          "invalid-token",
 			expectedStatus: http.StatusUnauthorized,
-			expectedError:  "invalid_token",
+			expectedError:  ErrCodeUnauthorized,
 		},
 	}
 
@@ -542,10 +543,10 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				var response ErrorResponse
+				var response StandardError
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedError, response.Error)
+				assert.Equal(t, tt.expectedError, response.Code)
 			}
 		})
 	}

@@ -7,11 +7,14 @@ import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { FileInput } from './ui/FileInput';
+import { ErrorMessage } from './ui/ErrorMessage';
+import { useFormValidation, commonRules } from '@/hooks/useFormValidation';
+import { ApiClientError } from '@/lib/api';
 
 interface DocumentUploadFormProps {
   onUpload: (file: File, issuer: string) => void;
   isLoading?: boolean;
-  error?: string | null;
+  error?: Error | ApiClientError | string | null;
   onErrorDismiss?: () => void;
 }
 
@@ -22,67 +25,71 @@ export function DocumentUploadForm({
   onErrorDismiss,
 }: DocumentUploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [issuer, setIssuer] = useState('');
-  const [fileError, setFileError] = useState<string>('');
-  const [issuerError, setIssuerError] = useState<string>('');
+  
+  // Form validation
+  const {
+    values,
+    errors,
+    handleChange,
+    handleBlur,
+    validateAll,
+    reset,
+    getFieldError,
+    hasFieldError,
+  } = useFormValidation(
+    { issuer: '' },
+    {
+      issuer: {
+        required: true,
+        minLength: 2,
+        maxLength: 100,
+      },
+    }
+  );
 
-  const validateForm = (): boolean => {
-    let isValid = true;
+  const validateFile = (selectedFile: File | null): string | null => {
+    if (!selectedFile) {
+      return 'Please select a PDF file to sign';
+    }
     
-    // Reset errors
-    setFileError('');
-    setIssuerError('');
-
-    // Validate file
-    if (!file) {
-      setFileError('Please select a PDF file to sign');
-      isValid = false;
+    if (selectedFile.type !== 'application/pdf') {
+      return 'Only PDF files are supported';
     }
-
-    // Validate issuer
-    if (!issuer.trim()) {
-      setIssuerError('Issuer name is required');
-      isValid = false;
-    } else if (issuer.trim().length < 2) {
-      setIssuerError('Issuer name must be at least 2 characters');
-      isValid = false;
+    
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      return 'File size must be less than 50MB';
     }
-
-    return isValid;
+    
+    if (selectedFile.size === 0) {
+      return 'File cannot be empty';
+    }
+    
+    return null;
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!validateForm()) {
+    // Validate form
+    const formValidation = validateAll();
+    const fileValidationError = validateFile(file);
+    
+    if (!formValidation.isValid || fileValidationError) {
       return;
     }
 
-    if (file && issuer.trim()) {
-      onUpload(file, issuer.trim());
+    if (file && values.issuer.trim()) {
+      onUpload(file, values.issuer.trim());
     }
   };
 
   const handleFileSelect = (selectedFile: File | null) => {
     setFile(selectedFile);
-    if (fileError && selectedFile) {
-      setFileError('');
-    }
-  };
-
-  const handleIssuerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setIssuer(value);
-    if (issuerError && value.trim()) {
-      setIssuerError('');
-    }
   };
 
   const handleReset = () => {
     setFile(null);
-    setIssuer('');
-    setFileError('');
-    setIssuerError('');
+    reset();
     if (onErrorDismiss) {
       onErrorDismiss();
     }
@@ -97,36 +104,12 @@ export function DocumentUploadForm({
         </p>
       </div>
 
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Document signing failed
-              </h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
-              {onErrorDismiss && (
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={onErrorDismiss}
-                    className="text-sm font-medium text-red-800 hover:text-red-600"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ErrorMessage
+        error={error || null}
+        className="mb-4"
+        onDismiss={onErrorDismiss}
+        showDetails={process.env.NODE_ENV === 'development'}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <FileInput
@@ -134,7 +117,7 @@ export function DocumentUploadForm({
           onFileSelect={handleFileSelect}
           accept=".pdf"
           maxSize={50 * 1024 * 1024} // 50MB
-          error={fileError}
+          error={validateFile(file) || undefined}
           helperText="Select a PDF file to digitally sign. Maximum file size: 50MB"
           disabled={isLoading}
         />
@@ -142,10 +125,11 @@ export function DocumentUploadForm({
         <Input
           label="Issuer Name"
           type="text"
-          value={issuer}
-          onChange={handleIssuerChange}
+          value={values.issuer}
+          onChange={(e) => handleChange('issuer', e.target.value)}
+          onBlur={() => handleBlur('issuer')}
           placeholder="Enter your name or organization"
-          error={issuerError}
+          error={getFieldError('issuer') || undefined}
           helperText="This will appear on the digital signature as the document issuer"
           disabled={isLoading}
           required
@@ -156,7 +140,7 @@ export function DocumentUploadForm({
             type="button"
             variant="secondary"
             onClick={handleReset}
-            disabled={isLoading || (!file && !issuer)}
+            disabled={isLoading || (!file && !values.issuer)}
           >
             Reset Form
           </Button>
@@ -165,7 +149,7 @@ export function DocumentUploadForm({
             type="submit"
             variant="primary"
             isLoading={isLoading}
-            disabled={!file || !issuer.trim() || isLoading}
+            disabled={!file || !values.issuer.trim() || isLoading || hasFieldError('issuer') || !!validateFile(file)}
           >
             {isLoading ? 'Signing Document...' : 'Sign Document'}
           </Button>

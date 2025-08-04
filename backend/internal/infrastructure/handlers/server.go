@@ -8,6 +8,7 @@ import (
 	"digital-signature-system/internal/domain/services"
 	"digital-signature-system/internal/infrastructure/crypto"
 	"digital-signature-system/internal/infrastructure/database"
+	"digital-signature-system/internal/infrastructure/logging"
 	"digital-signature-system/internal/infrastructure/pdf"
 )
 
@@ -25,6 +26,19 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config, db *gorm.DB) *Server {
+	// Initialize logging
+	logLevel := logging.INFO
+	if cfg.Environment == "development" {
+		logLevel = logging.DEBUG
+	}
+	
+	if err := logging.Initialize("logs", logLevel); err != nil {
+		panic("Failed to initialize logging: " + err.Error())
+	}
+
+	logger := logging.GetLogger()
+	logger.Info("Initializing server...")
+
 	// Initialize repositories
 	userRepo := database.NewUserRepository(db)
 	sessionRepo := database.NewSessionRepository(db)
@@ -34,12 +48,12 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	// Initialize crypto services
 	keyManager, err := crypto.NewKeyManager()
 	if err != nil {
-		panic("Failed to initialize key manager: " + err.Error())
+		logger.Fatal("Failed to initialize key manager: %v", err)
 	}
 
 	signatureService, err := crypto.NewSignatureServiceFromKeyManager(keyManager)
 	if err != nil {
-		panic("Failed to initialize signature service: " + err.Error())
+		logger.Fatal("Failed to initialize signature service: %v", err)
 	}
 
 	pdfService := pdf.NewPDFService()
@@ -70,12 +84,20 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	server.setupMiddleware()
 	server.setupRoutes()
+	
+	logger.Info("Server initialized successfully")
 	return server
 }
 
 func (s *Server) setupMiddleware() {
+	// Add security headers middleware
+	s.router.Use(s.authMiddleware.SecurityHeaders())
+
 	// Add CORS middleware
 	s.router.Use(s.authMiddleware.CORS())
+
+	// Add input validation middleware
+	s.router.Use(s.authMiddleware.InputValidation())
 
 	// Add request logging middleware
 	s.router.Use(s.authMiddleware.RequestLogging())
@@ -117,7 +139,10 @@ func (s *Server) setupRoutes() {
 			// Document routes
 			documents := protected.Group("/documents")
 			{
-				documents.POST("/sign", s.documentHandler.SignDocument)
+				// Add file validation for document signing (50MB max, PDF only)
+				documents.POST("/sign", 
+					s.authMiddleware.FileValidation(50<<20, []string{"application/pdf"}),
+					s.documentHandler.SignDocument)
 				documents.GET("/", s.documentHandler.GetDocuments)
 				documents.GET("/:id", s.documentHandler.GetDocument)
 				documents.DELETE("/:id", s.documentHandler.DeleteDocument)
@@ -128,7 +153,10 @@ func (s *Server) setupRoutes() {
 		verify := api.Group("/verify")
 		{
 			verify.GET("/:docId", s.verificationHandler.GetVerificationInfo)
-			verify.POST("/:docId/upload", s.verificationHandler.VerifyDocument)
+			// Add file validation for document verification (50MB max, PDF only)
+			verify.POST("/:docId/upload", 
+				s.authMiddleware.FileValidation(50<<20, []string{"application/pdf"}),
+				s.verificationHandler.VerifyDocument)
 			verify.GET("/:docId/history", s.verificationHandler.GetVerificationHistory)
 		}
 	}

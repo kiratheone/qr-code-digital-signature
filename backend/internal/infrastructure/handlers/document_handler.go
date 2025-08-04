@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -28,21 +27,14 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	// Get user ID from authentication context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
-	// Parse multipart form
-	err := c.Request.ParseMultipartForm(50 << 20) // 50MB max
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
-		return
-	}
-
-	// Get file from form
+	// Get file from form (form parsing is handled by middleware)
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
+		RespondWithValidationError(c, "File is required", err.Error())
 		return
 	}
 	defer file.Close()
@@ -50,20 +42,14 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	// Get issuer from form
 	issuer := c.Request.FormValue("issuer")
 	if issuer == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Issuer is required"})
-		return
-	}
-
-	// Validate file type
-	if header.Header.Get("Content-Type") != "application/pdf" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only PDF files are allowed"})
+		RespondWithValidationError(c, "Issuer is required")
 		return
 	}
 
 	// Read file data
 	pdfData, err := io.ReadAll(file)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read file data"})
+		RespondWithInternalError(c, "Failed to read file data", err.Error())
 		return
 	}
 
@@ -78,7 +64,7 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	// Sign document
 	response, err := h.documentService.SignDocument(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to sign document: %v", err)})
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
@@ -94,7 +80,7 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	// Get user ID from authentication context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
@@ -131,7 +117,7 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	// Get documents
 	response, err := h.documentService.GetDocuments(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get documents: %v", err)})
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
@@ -143,29 +129,21 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	// Get user ID from authentication context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
 	// Get document ID from URL parameter
 	documentID := c.Param("id")
 	if documentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Document ID is required"})
+		RespondWithValidationError(c, "Document ID is required")
 		return
 	}
 
 	// Get document
 	document, err := h.documentService.GetDocumentByID(c.Request.Context(), userID.(string), documentID)
 	if err != nil {
-		if err.Error() == "document not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-			return
-		}
-		if err.Error() == "access denied: document belongs to different user" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get document: %v", err)})
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
@@ -177,29 +155,21 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	// Get user ID from authentication context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		RespondWithUnauthorizedError(c, "User not authenticated")
 		return
 	}
 
 	// Get document ID from URL parameter
 	documentID := c.Param("id")
 	if documentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Document ID is required"})
+		RespondWithValidationError(c, "Document ID is required")
 		return
 	}
 
 	// Delete document
 	err := h.documentService.DeleteDocument(c.Request.Context(), userID.(string), documentID)
 	if err != nil {
-		if err.Error() == "document not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-			return
-		}
-		if err.Error() == "access denied: document belongs to different user" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete document: %v", err)})
+		MapServiceErrorToHTTP(c, err)
 		return
 	}
 
