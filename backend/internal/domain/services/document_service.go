@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"digital-signature-system/internal/domain/entities"
@@ -25,6 +26,7 @@ type PDFServiceInterface interface {
 	CalculateHash(pdfData []byte) ([]byte, error)
 	GenerateQRCode(data pdf.QRCodeData) ([]byte, error)
 	InjectQRCode(pdfData []byte, qrCodeData pdf.QRCodeData, position *pdf.QRPosition) ([]byte, error)
+	ReadPDFFromReader(reader io.Reader) ([]byte, error)
 }
 
 // DocumentService handles all document-related business logic
@@ -261,4 +263,9 @@ func (s *DocumentService) DecodeSignatureData(signatureDataStr string) (*crypto.
 		Hash:      hashBytes,
 		Algorithm: data["algorithm"].(string),
 	}, nil
+}
+
+// ReadPDFFromStream reads PDF data from a stream with size limits for better performance
+func (s *DocumentService) ReadPDFFromStream(reader io.Reader) ([]byte, error) {
+	return s.pdfService.ReadPDFFromReader(reader)
 }

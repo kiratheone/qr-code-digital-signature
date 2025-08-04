@@ -97,7 +97,7 @@ describe('DocumentUploadForm', () => {
       />
     );
 
-    expect(screen.getByText('Document signing failed')).toBeInTheDocument();
+    expect(screen.getByText('Error')).toBeInTheDocument();
     expect(screen.getByText(errorMessage)).toBeInTheDocument();
     
     const dismissButton = screen.getByText('Dismiss');

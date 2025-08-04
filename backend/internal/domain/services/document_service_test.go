@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,6 +89,11 @@ func (m *MockPDFService) GenerateQRCode(data pdf.QRCodeData) ([]byte, error) {
 
 func (m *MockPDFService) InjectQRCode(pdfData []byte, qrCodeData pdf.QRCodeData, position *pdf.QRPosition) ([]byte, error) {
 	args := m.Called(pdfData, qrCodeData, position)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *MockPDFService) ReadPDFFromReader(reader io.Reader) ([]byte, error) {
+	args := m.Called(reader)
 	return args.Get(0).([]byte), args.Error(1)
 }
 

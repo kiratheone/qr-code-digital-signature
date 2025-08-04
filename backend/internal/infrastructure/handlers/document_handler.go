@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"io"
 	"net/http"
 	"strconv"
 
@@ -71,16 +70,10 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		return
 	}
 
-	// Read file data
-	pdfData, err := io.ReadAll(file)
+	// Use streaming to read PDF data with size limit for better performance
+	pdfData, err := h.documentService.ReadPDFFromStream(file)
 	if err != nil {
-		RespondWithInternalError(c, "Failed to read file data", err.Error())
-		return
-	}
-
-	// Validate file size
-	if validationErr := h.validator.ValidateFileSize("file", int64(len(pdfData)), 50<<20); validationErr != nil {
-		RespondWithValidationError(c, "Invalid file size", validationErr.Error())
+		RespondWithValidationError(c, "Failed to process PDF file", err.Error())
 		return
 	}
 

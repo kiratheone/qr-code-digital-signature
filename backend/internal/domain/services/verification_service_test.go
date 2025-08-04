@@ -39,6 +39,8 @@ func (m *MockVerificationLogRepository) GetByID(ctx context.Context, id string) 
 	return args.Get(0).(*entities.VerificationLog), args.Error(1)
 }
 
+
+
 func TestVerificationService_GetVerificationInfo(t *testing.T) {
 	tests := []struct {
 		name          string

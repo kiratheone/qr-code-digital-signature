@@ -2,15 +2,19 @@
  * Document Verification Page
  * Page for verifying document authenticity using QR code
  * Uses hooks and components with clean separation
+ * Implements lazy loading for better performance
  */
 
 'use client';
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { VerificationForm } from '@/components/VerificationForm';
-import { VerificationResult } from '@/components/VerificationResult';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useVerificationFlow } from '@/hooks';
+
+// Lazy load verification components for better performance
+const VerificationForm = lazy(() => import('@/components/VerificationForm').then(module => ({ default: module.VerificationForm })));
+const VerificationResult = lazy(() => import('@/components/VerificationResult').then(module => ({ default: module.VerificationResult })));
 
 export default function VerifyDocumentPage() {
   const params = useParams();
@@ -161,21 +165,25 @@ export default function VerifyDocumentPage() {
 
       {/* Show verification result if verification is complete */}
       {hasVerificationResult && verificationResult ? (
-        <VerificationResult
-          result={verificationResult}
-          onVerifyAnother={handleVerifyAnother}
-          onGoHome={handleGoHome}
-        />
+        <Suspense fallback={<LoadingSpinner />}>
+          <VerificationResult
+            result={verificationResult}
+            onVerifyAnother={handleVerifyAnother}
+            onGoHome={handleGoHome}
+          />
+        </Suspense>
       ) : (
         /* Show verification form if document info is available */
         hasDocumentInfo && documentInfo && (
-          <VerificationForm
-            documentInfo={documentInfo}
-            onVerify={handleDocumentVerify}
-            isLoading={isVerifying}
-            error={error instanceof Error ? error.message : null}
-            onErrorDismiss={handleErrorDismiss}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <VerificationForm
+              documentInfo={documentInfo}
+              onVerify={handleDocumentVerify}
+              isLoading={isVerifying}
+              error={error instanceof Error ? error.message : null}
+              onErrorDismiss={handleErrorDismiss}
+            />
+          </Suspense>
         )
       )}
 
