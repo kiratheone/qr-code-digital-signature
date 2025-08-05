@@ -6,9 +6,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8065:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://qds-backend:${PORT:-8000}
+      - NEXT_PUBLIC_API_URL=http://qds-backend:${PORT:-8112}
     depends_on:
       - qds-backend
     networks:
@@ -19,11 +19,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-8000}:${PORT:-8000}"
+      - "${PORT:-8112}:${PORT:-8112}"
     environment:
-      - PORT=${PORT:-8000}
+      - PORT=${PORT:-8112}
       - DB_HOST=qds-postgres
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_PORT=5432
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -46,7 +46,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5434}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
