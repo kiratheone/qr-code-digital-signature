@@ -6,11 +6,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     ports:
       - "8065:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     depends_on:
       - qds-backend
     networks:
@@ -40,6 +41,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - PUBLIC_KEY=${PUBLIC_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     depends_on:
       qds-postgres:
         condition: service_healthy

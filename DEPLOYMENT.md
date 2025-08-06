@@ -40,6 +40,9 @@ PUBLIC_KEY=your-base64-encoded-public-key
 # Server Configuration
 PORT=8000
 
+# CORS Configuration (comma-separated list of allowed origins)
+CORS_ORIGINS=https://your-frontend-domain.com,https://your-api-domain.com
+
 # Frontend Configuration
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
@@ -130,6 +133,7 @@ Features:
 | `DB_HOST` | Database host | `qds-postgres` |
 | `DB_PORT` | Database port | `5432` |
 | `DB_SSL_MODE` | SSL mode | `disable` (dev), `require` (prod) |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | See config |
 
 ## Health Checks
 

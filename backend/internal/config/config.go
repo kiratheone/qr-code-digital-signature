@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -20,6 +21,7 @@ type Config struct {
 	PublicKey      string
 	PrivateKeyPath string
 	PublicKeyPath  string
+	CORSOrigins    string
 }
 
 func Load() (*Config, error) {
@@ -40,6 +42,7 @@ func Load() (*Config, error) {
 		PublicKey:      getEnv("PUBLIC_KEY", ""),
 		PrivateKeyPath: getEnv("PRIVATE_KEY_PATH", "private_key.pem"),
 		PublicKeyPath:  getEnv("PUBLIC_KEY_PATH", "public_key.pem"),
+		CORSOrigins:    getEnv("CORS_ORIGINS", "https://sign.arikachmad.com,https://sign-api.arikachmad.com,http://localhost:3000,http://localhost:8065"),
 	}
 
 	return config, nil
@@ -50,4 +53,16 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// GetCORSOrigins returns CORS origins as a slice
+func (c *Config) GetCORSOrigins() []string {
+	if c.CORSOrigins == "" {
+		return []string{}
+	}
+	origins := strings.Split(c.CORSOrigins, ",")
+	for i, origin := range origins {
+		origins[i] = strings.TrimSpace(origin)
+	}
+	return origins
 }

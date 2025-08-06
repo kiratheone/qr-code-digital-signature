@@ -72,7 +72,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	authHandler := NewAuthHandler(authService)
 	documentHandler := NewDocumentHandler(documentService)
 	verificationHandler := NewVerificationHandler(verificationService)
-	authMiddleware := NewAuthMiddleware(authService)
+	authMiddleware := NewAuthMiddleware(authService, cfg)
 
 	server := &Server{
 		config:              cfg,
@@ -89,7 +89,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	server.setupMiddleware()
 	server.setupRoutes()
-	
+
 	logger.Info("Server initialized successfully")
 	return server
 }
@@ -131,6 +131,7 @@ func (s *Server) setupRoutes() {
 			auth.POST("/login", s.authHandler.Login)
 			auth.POST("/register", s.authHandler.Register)
 			auth.POST("/logout", s.authHandler.Logout)
+			auth.GET("/me", s.authMiddleware.RequireAuth(), s.authHandler.GetProfile)
 		}
 
 		// Protected routes (authentication required)
@@ -152,6 +153,9 @@ func (s *Server) setupRoutes() {
 				documents.GET("/:id", s.documentHandler.GetDocument)
 				documents.DELETE("/:id", s.documentHandler.DeleteDocument)
 			}
+			
+			// Add direct route without trailing slash to avoid redirects
+			protected.GET("/documents", s.documentHandler.GetDocuments)
 		}
 
 		// Public verification routes (no authentication required)

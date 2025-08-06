@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
+	"digital-signature-system/internal/config"
 	"digital-signature-system/internal/domain/services"
 	"digital-signature-system/internal/infrastructure/logging"
 	"digital-signature-system/internal/infrastructure/validation"
@@ -19,14 +20,16 @@ type AuthMiddleware struct {
 	rateLimiter *rate.Limiter
 	logger      *logging.Logger
 	validator   *validation.Validator
+	config      *config.Config
 }
 
-func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
+func NewAuthMiddleware(authService *services.AuthService, cfg *config.Config) *AuthMiddleware {
 	return &AuthMiddleware{
 		authService: authService,
 		rateLimiter: rate.NewLimiter(rate.Every(time.Second), 100), // 100 requests per second
 		logger:      logging.GetLogger(),
 		validator:   validation.NewValidator(),
+		config:      cfg,
 	}
 }
 
@@ -148,14 +151,33 @@ func (m *AuthMiddleware) OptionalAuth() gin.HandlerFunc {
 // CORS middleware for handling cross-origin requests
 func (m *AuthMiddleware) CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		c.Header("Access-Control-Expose-Headers", "Content-Length")
-		c.Header("Access-Control-Allow-Credentials", "true")
+		origin := c.Request.Header.Get("Origin")
+		allowedOrigins := m.config.GetCORSOrigins()
+
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				c.Header("Access-Control-Allow-Origin", origin)
+				originAllowed = true
+				break
+			}
+		}
+
+		// Only set CORS headers if origin is allowed
+		if originAllowed {
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+			c.Header("Access-Control-Expose-Headers", "Content-Length")
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
+			if originAllowed {
+				c.AbortWithStatus(http.StatusNoContent)
+			} else {
+				c.AbortWithStatus(http.StatusForbidden)
+			}
 			return
 		}
 
@@ -168,7 +190,7 @@ func (m *AuthMiddleware) RateLimiting() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		if !m.rateLimiter.Allow() {
 			m.logger.Warn("Rate limit exceeded for IP: %s", c.ClientIP())
-			
+
 			// Log security event for rate limiting
 			logging.LogSecurityEvent(
 				logging.AuditEventRateLimitExceeded,
@@ -177,11 +199,11 @@ func (m *AuthMiddleware) RateLimiting() gin.HandlerFunc {
 				"Rate limit exceeded",
 				map[string]interface{}{
 					"endpoint": c.Request.URL.Path,
-					"method": c.Request.Method,
+					"method":   c.Request.Method,
 				},
 			)
-			
-			RespondWithError(c, http.StatusTooManyRequests, 
+
+			RespondWithError(c, http.StatusTooManyRequests,
 				NewStandardError(ErrCodeRateLimitExceeded, "Too many requests"))
 			c.Abort()
 			return
@@ -225,7 +247,7 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 		if userAgent != "" {
 			if _, err := m.validator.ValidateAndSanitizeString("user-agent", userAgent, 0, 500, false); err != nil {
 				m.logger.Warn("Suspicious User-Agent detected from IP %s: %s", c.ClientIP(), userAgent)
-				
+
 				// Log security event for suspicious user agent
 				logging.LogSecurityEvent(
 					logging.AuditEventSuspiciousActivity,
@@ -234,11 +256,11 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 					"Suspicious User-Agent detected",
 					map[string]interface{}{
 						"validation_error": err.Error(),
-						"endpoint": c.Request.URL.Path,
-						"method": c.Request.Method,
+						"endpoint":         c.Request.URL.Path,
+						"method":           c.Request.Method,
 					},
 				)
-				
+
 				RespondWithValidationError(c, "Invalid request headers", err.Error())
 				c.Abort()
 				return
@@ -269,9 +291,9 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 			// Validate parameter values
 			for _, value := range values {
 				if _, err := m.validator.ValidateAndSanitizeString("query-param-value", value, 0, 200, false); err != nil {
-					m.logger.Warn("Suspicious query parameter value detected from IP %s: %s=%s", 
+					m.logger.Warn("Suspicious query parameter value detected from IP %s: %s=%s",
 						c.ClientIP(), key, value)
-					
+
 					// Log security event for suspicious query parameters
 					logging.LogSecurityEvent(
 						logging.AuditEventSuspiciousActivity,
@@ -279,14 +301,14 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 						c.GetHeader("User-Agent"),
 						"Suspicious query parameter detected",
 						map[string]interface{}{
-							"parameter_name": key,
-							"parameter_value": value,
+							"parameter_name":   key,
+							"parameter_value":  value,
 							"validation_error": err.Error(),
-							"endpoint": c.Request.URL.Path,
-							"method": c.Request.Method,
+							"endpoint":         c.Request.URL.Path,
+							"method":           c.Request.Method,
 						},
 					)
-					
+
 					RespondWithValidationError(c, "Invalid query parameter value", err.Error())
 					c.Abort()
 					return
@@ -297,7 +319,7 @@ func (m *AuthMiddleware) InputValidation() gin.HandlerFunc {
 		// Validate URL path parameters
 		for _, param := range c.Params {
 			if _, err := m.validator.ValidateAndSanitizeString("path-param", param.Value, 0, 100, false); err != nil {
-				m.logger.Warn("Suspicious path parameter detected from IP %s: %s=%s", 
+				m.logger.Warn("Suspicious path parameter detected from IP %s: %s=%s",
 					c.ClientIP(), param.Key, param.Value)
 				RespondWithValidationError(c, "Invalid path parameter", err.Error())
 				c.Abort()
@@ -314,16 +336,16 @@ func (m *AuthMiddleware) SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Prevent MIME type sniffing
 		c.Header("X-Content-Type-Options", "nosniff")
-		
+
 		// Prevent clickjacking
 		c.Header("X-Frame-Options", "DENY")
-		
+
 		// Enable XSS protection
 		c.Header("X-XSS-Protection", "1; mode=block")
-		
+
 		// Control referrer information
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Content Security Policy
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline'; " +
@@ -335,25 +357,25 @@ func (m *AuthMiddleware) SecurityHeaders() gin.HandlerFunc {
 			"base-uri 'self'; " +
 			"form-action 'self'"
 		c.Header("Content-Security-Policy", csp)
-		
+
 		// Strict Transport Security (HTTPS only)
 		if c.Request.TLS != nil {
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
-		
+
 		// Permissions Policy (formerly Feature Policy)
 		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
-		
+
 		// Remove server information
 		c.Header("Server", "")
-		
+
 		// Prevent caching of sensitive responses
 		if strings.Contains(c.Request.URL.Path, "/api/") {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Pragma", "no-cache")
 			c.Header("Expires", "0")
 		}
-		
+
 		c.Next()
 	}
 }
@@ -446,7 +468,7 @@ func (m *AuthMiddleware) FileValidation(maxSize int64, allowedTypes []string) gi
 func (m *AuthMiddleware) hasSuspiciousExtension(filename string) bool {
 	// Convert to lowercase for case-insensitive comparison
 	lowerFilename := strings.ToLower(filename)
-	
+
 	// List of suspicious extensions that should not be allowed
 	suspiciousExtensions := []string{
 		".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js",
@@ -455,13 +477,13 @@ func (m *AuthMiddleware) hasSuspiciousExtension(filename string) bool {
 		".php", ".asp", ".aspx", ".jsp", ".py", ".rb", ".pl",
 		".sql", ".db", ".sqlite", ".mdb",
 	}
-	
+
 	for _, ext := range suspiciousExtensions {
 		if strings.HasSuffix(lowerFilename, ext) {
 			return true
 		}
 	}
-	
+
 	// Check for double extensions (e.g., file.pdf.exe)
 	parts := strings.Split(lowerFilename, ".")
 	if len(parts) > 2 {
@@ -473,7 +495,7 @@ func (m *AuthMiddleware) hasSuspiciousExtension(filename string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
