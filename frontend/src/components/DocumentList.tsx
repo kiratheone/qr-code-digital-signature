@@ -11,6 +11,8 @@ interface DocumentListProps {
   documents: Document[];
   onDelete: (documentId: string) => void;
   onDownload?: (documentId: string) => void;
+  onDownloadQR?: (documentId: string) => void;
+  onCopyVerificationUrl?: (documentId: string) => void;
   isLoading?: boolean;
   isDeletingDocument?: boolean;
   isDownloadingDocument?: boolean;
@@ -22,6 +24,8 @@ export function DocumentList({
   documents,
   onDelete,
   onDownload,
+  onDownloadQR,
+  onCopyVerificationUrl,
   isLoading = false,
   isDeletingDocument = false,
   isDownloadingDocument = false,
@@ -125,17 +129,53 @@ export function DocumentList({
                   </span>
                 </div>
 
-                {onDownload && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onDownload(document.id)}
-                    disabled={isDownloadingDocument}
-                    isLoading={isDownloadingDocument}
-                  >
-                    Download
-                  </Button>
-                )}
+                {/* Download Actions */}
+                <div className="flex items-center space-x-1">
+                  {onDownload && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onDownload(document.id)}
+                      disabled={isDownloadingDocument}
+                      isLoading={isDownloadingDocument}
+                      title="Download signed PDF"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      PDF
+                    </Button>
+                  )}
+
+                  {onDownloadQR && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onDownloadQR(document.id)}
+                      disabled={isDownloadingDocument}
+                      title="Download QR code"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                      </svg>
+                      QR
+                    </Button>
+                  )}
+
+                  {onCopyVerificationUrl && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onCopyVerificationUrl(document.id)}
+                      title="Copy verification URL"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      URL
+                    </Button>
+                  )}
+                </div>
 
                 <Button
                   variant="danger"

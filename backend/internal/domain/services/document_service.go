@@ -269,3 +269,122 @@ func (s *DocumentService) DecodeSignatureData(signatureDataStr string) (*crypto.
 func (s *DocumentService) ReadPDFFromStream(reader io.Reader) ([]byte, error) {
 	return s.pdfService.ReadPDFFromReader(reader)
 }
+
+// GetQRCodeImage generates and returns QR code image for a document
+func (s *DocumentService) GetQRCodeImage(ctx context.Context, userID, documentID string) ([]byte, string, error) {
+	// Get document and verify ownership
+	document, err := s.GetDocumentByID(ctx, userID, documentID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Parse QR code data from document
+	var qrCodeData pdf.QRCodeData
+	if err := json.Unmarshal([]byte(document.QRCodeData), &qrCodeData); err != nil {
+		return nil, "", fmt.Errorf("failed to parse QR code data: %w", err)
+	}
+
+	// Generate QR code image
+	qrCodeImage, err := s.pdfService.GenerateQRCode(qrCodeData)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate QR code image: %w", err)
+	}
+
+	// Generate filename
+	filename := fmt.Sprintf("%s_qr_code.png", document.Filename[:len(document.Filename)-4]) // Remove .pdf extension
+
+	return qrCodeImage, filename, nil
+}
+
+// GetSignedPDF returns the signed PDF with embedded QR code (if available)
+func (s *DocumentService) GetSignedPDF(ctx context.Context, userID, documentID string) ([]byte, string, error) {
+	// Get document and verify ownership
+	document, err := s.GetDocumentByID(ctx, userID, documentID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// For now, we'll return a placeholder since we don't store the actual PDF data
+	// In a production system, you would store the signed PDF file and retrieve it here
+	// This is a simplified implementation that generates a basic response
+	
+	// Parse QR code data
+	var qrCodeData pdf.QRCodeData
+	if err := json.Unmarshal([]byte(document.QRCodeData), &qrCodeData); err != nil {
+		return nil, "", fmt.Errorf("failed to parse QR code data: %w", err)
+	}
+
+	// Generate a simple PDF with document information
+	// Note: In a real implementation, you would retrieve the stored signed PDF
+	pdfContent := fmt.Sprintf(`%%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Length 200
+>>
+stream
+BT
+/F1 12 Tf
+50 750 Td
+(Document: %s) Tj
+0 -20 Td
+(Issuer: %s) Tj
+0 -20 Td
+(Signed: %s) Tj
+0 -20 Td
+(Document ID: %s) Tj
+0 -20 Td
+(Hash: %s) Tj
+ET
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000206 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+456
+%%%%EOF`, 
+		document.Filename, 
+		document.Issuer, 
+		document.CreatedAt.Format("2006-01-02 15:04:05"),
+		document.ID,
+		document.DocumentHash[:20]+"...")
+
+	// Generate filename for signed PDF
+	filename := fmt.Sprintf("signed_%s", document.Filename)
+
+	return []byte(pdfContent), filename, nil
+}

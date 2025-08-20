@@ -104,6 +104,55 @@ export class DocumentService {
   }
 
   /**
+   * Download QR code image for a document
+   */
+  async downloadQRCode(documentId: string): Promise<Blob> {
+    if (!documentId.trim()) {
+      throw new Error('Document ID is required');
+    }
+
+    const response = await fetch(`${this.apiClient['baseURL']}/api/documents/${documentId}/qr-code`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.apiClient.getToken()}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download QR code');
+    }
+
+    return response.blob();
+  }
+
+  /**
+   * Generate verification URL for QR code
+   */
+  generateVerificationUrl(documentId: string): string {
+    if (!documentId.trim()) {
+      throw new Error('Document ID is required');
+    }
+
+    // Get the current origin or use a default
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com';
+    return `${origin}/verify/${documentId}`;
+  }
+
+  /**
+   * Download file helper
+   */
+  downloadFile(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
    * Validate file before upload
    */
   validateFile(file: File): { isValid: boolean; error?: string } {

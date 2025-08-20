@@ -151,6 +151,8 @@ func (s *Server) setupRoutes() {
 					s.documentHandler.SignDocument)
 				documents.GET("/", s.documentHandler.GetDocuments)
 				documents.GET("/:id", s.documentHandler.GetDocument)
+				documents.GET("/:id/qr-code", s.documentHandler.DownloadQRCode)
+				documents.GET("/:id/download", s.documentHandler.DownloadSignedPDF)
 				documents.DELETE("/:id", s.documentHandler.DeleteDocument)
 			}
 			

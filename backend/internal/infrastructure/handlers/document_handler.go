@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -367,4 +368,147 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
+}
+
+// DownloadQRCode handles GET /api/documents/:id/qr-code
+func (h *DocumentHandler) DownloadQRCode(c *gin.Context) {
+	// Get user ID from authentication context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		RespondWithUnauthorizedError(c, "User not authenticated")
+		return
+	}
+
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
+		return
+	}
+
+	// Get and validate document ID from URL parameter
+	documentID := c.Param("id")
+	if _, validationErr := h.validator.ValidateUUID("document_id", documentID, true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid document ID", validationErr.Error())
+		return
+	}
+
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
+
+	// Get QR code image
+	qrCodeImage, filename, err := h.documentService.GetQRCodeImage(c.Request.Context(), userID.(string), documentID)
+	if err != nil {
+		// Log failed QR code download attempt
+		logging.LogDocumentOperation(
+			logging.AuditEventDocumentView,
+			authUser.ID,
+			authUser.Username,
+			documentID,
+			c.ClientIP(),
+			"FAILURE",
+			map[string]interface{}{
+				"operation": "qr_code_download",
+				"error": err.Error(),
+				"endpoint": "/api/documents/" + documentID + "/qr-code",
+			},
+		)
+		MapServiceErrorToHTTP(c, err)
+		return
+	}
+
+	// Log successful QR code download
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentView,
+		authUser.ID,
+		authUser.Username,
+		documentID,
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"operation": "qr_code_download",
+			"filename": filename,
+			"endpoint": "/api/documents/" + documentID + "/qr-code",
+		},
+	)
+
+	// Set headers for file download
+	c.Header("Content-Type", "image/png")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Header("Content-Length", fmt.Sprintf("%d", len(qrCodeImage)))
+
+	// Return QR code image
+	c.Data(http.StatusOK, "image/png", qrCodeImage)
+}
+
+// DownloadSignedPDF handles GET /api/documents/:id/download
+func (h *DocumentHandler) DownloadSignedPDF(c *gin.Context) {
+	// Get user ID from authentication context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		RespondWithUnauthorizedError(c, "User not authenticated")
+		return
+	}
+
+	// Validate user ID format
+	if _, validationErr := h.validator.ValidateUUID("user_id", userID.(string), true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid user ID", validationErr.Error())
+		return
+	}
+
+	// Get and validate document ID from URL parameter
+	documentID := c.Param("id")
+	if _, validationErr := h.validator.ValidateUUID("document_id", documentID, true); validationErr != nil {
+		RespondWithValidationError(c, "Invalid document ID", validationErr.Error())
+		return
+	}
+
+	// Get user info for logging
+	user, _ := c.Get("user")
+	authUser := user.(*services.AuthenticatedUser)
+
+	// Get signed PDF
+	pdfData, filename, err := h.documentService.GetSignedPDF(c.Request.Context(), userID.(string), documentID)
+	if err != nil {
+		// Log failed PDF download attempt
+		logging.LogDocumentOperation(
+			logging.AuditEventDocumentView,
+			authUser.ID,
+			authUser.Username,
+			documentID,
+			c.ClientIP(),
+			"FAILURE",
+			map[string]interface{}{
+				"operation": "pdf_download",
+				"error": err.Error(),
+				"endpoint": "/api/documents/" + documentID + "/download",
+			},
+		)
+		MapServiceErrorToHTTP(c, err)
+		return
+	}
+
+	// Log successful PDF download
+	logging.LogDocumentOperation(
+		logging.AuditEventDocumentView,
+		authUser.ID,
+		authUser.Username,
+		documentID,
+		c.ClientIP(),
+		"SUCCESS",
+		map[string]interface{}{
+			"operation": "pdf_download",
+			"filename": filename,
+			"file_size": len(pdfData),
+			"endpoint": "/api/documents/" + documentID + "/download",
+		},
+	)
+
+	// Set headers for file download
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Header("Content-Length", fmt.Sprintf("%d", len(pdfData)))
+
+	// Return PDF file
+	c.Data(http.StatusOK, "application/pdf", pdfData)
 }

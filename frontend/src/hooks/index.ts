@@ -28,3 +28,6 @@ export {
   useVerificationFlow,
   verificationKeys,
 } from './useVerificationOperations';
+
+// Download hooks
+export { useDocumentDownloads } from './useDocumentDownloads';
