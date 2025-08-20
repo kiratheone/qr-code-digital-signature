@@ -35,6 +35,7 @@ type VerificationInfo struct {
 	CreatedAt    time.Time `json:"created_at"`
 	FileSize     int64     `json:"file_size"`
 	Status       string    `json:"status"`
+	DocumentHash string    `json:"document_hash"`
 	QRCodeData   string    `json:"qr_code_data,omitempty"`
 }
 
@@ -47,15 +48,25 @@ type VerificationRequest struct {
 
 // VerificationResult represents the result of document verification
 type VerificationResult struct {
-	DocumentID         string                 `json:"document_id"`
-	IsValid            bool                   `json:"is_valid"`
-	Status             string                 `json:"status"`
-	Message            string                 `json:"message"`
-	Details            map[string]interface{} `json:"details"`
-	VerifiedAt         time.Time              `json:"verified_at"`
-	HashMatches        bool                   `json:"hash_matches"`
-	SignatureValid     bool                   `json:"signature_valid"`
-	QRCodeValid        bool                   `json:"qr_code_valid"`
+	DocumentID     string                 `json:"document_id"`
+	IsValid        bool                   `json:"is_valid"`
+	Status         string                 `json:"status"`
+	Message        string                 `json:"message"`
+	Details        VerificationDetails    `json:"details"`
+	VerifiedAt     time.Time              `json:"verified_at"`
+	HashMatches    bool                   `json:"hash_matches"`
+	SignatureValid bool                   `json:"signature_valid"`
+	QRCodeValid    bool                   `json:"qr_code_valid"`
+}
+
+// VerificationDetails represents the detailed verification results
+type VerificationDetails struct {
+	QRValid        bool   `json:"qr_valid"`
+	HashMatches    bool   `json:"hash_matches"`
+	SignatureValid bool   `json:"signature_valid"`
+	OriginalHash   string `json:"original_hash"`
+	UploadedHash   string `json:"uploaded_hash"`
+	Error          string `json:"error,omitempty"`
 }
 
 // Verification status constants
@@ -101,33 +112,34 @@ func (s *VerificationService) GetVerificationInfo(ctx context.Context, documentI
 	}
 
 	return &VerificationInfo{
-		DocumentID: document.ID,
-		Filename:   document.Filename,
-		Issuer:     document.Issuer,
-		CreatedAt:  document.CreatedAt,
-		FileSize:   document.FileSize,
-		Status:     document.Status,
-		QRCodeData: document.QRCodeData,
+		DocumentID:   document.ID,
+		Filename:     document.Filename,
+		Issuer:       document.Issuer,
+		CreatedAt:    document.CreatedAt,
+		FileSize:     document.FileSize,
+		Status:       document.Status,
+		DocumentHash: document.DocumentHash,
+		QRCodeData:   document.QRCodeData,
 	}, nil
 }
 
 // VerifyDocument verifies a document against its stored signature and hash
 func (s *VerificationService) VerifyDocument(ctx context.Context, req *VerificationRequest) (*VerificationResult, error) {
-	result := &VerificationResult{
-		DocumentID: req.DocumentID,
-		VerifiedAt: time.Now(),
-		Details:    make(map[string]interface{}),
-	}
+       result := &VerificationResult{
+	       DocumentID: req.DocumentID,
+	       VerifiedAt: time.Now(),
+	       Details:    VerificationDetails{},
+       }
 
 	// Get original document from database
-	document, err := s.documentRepo.GetByID(ctx, req.DocumentID)
-	if err != nil {
-		result.Status = StatusError
-		result.Message = "Failed to retrieve document information"
-		result.Details["error"] = err.Error()
-		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
-		return result, nil
-	}
+       document, err := s.documentRepo.GetByID(ctx, req.DocumentID)
+       if err != nil {
+	       result.Status = StatusError
+	       result.Message = "Failed to retrieve document information"
+	       result.Details.Error = err.Error()
+	       s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
+	       return result, nil
+       }
 
 	if document == nil {
 		result.Status = StatusError
@@ -148,7 +160,6 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 	if err := s.pdfService.ValidatePDF(req.PDFData); err != nil {
 		result.Status = StatusError
 		result.Message = "Invalid PDF file"
-		result.Details["validation_error"] = err.Error()
 		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
 		return result, nil
 	}
@@ -158,7 +169,6 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 	if err != nil {
 		result.Status = StatusError
 		result.Message = "Failed to calculate document hash"
-		result.Details["hash_error"] = err.Error()
 		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
 		return result, nil
 	}
@@ -168,29 +178,22 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 	if err := json.Unmarshal([]byte(document.QRCodeData), &qrCodeData); err != nil {
 		result.Status = StatusError
 		result.Message = "Failed to parse QR code data"
-		result.Details["qr_parse_error"] = err.Error()
 		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
 		return result, nil
 	}
 
 	// Verify QR code data matches document
 	result.QRCodeValid = (qrCodeData.DocID == document.ID && qrCodeData.Hash == document.DocumentHash)
-	result.Details["qr_doc_id"] = qrCodeData.DocID
-	result.Details["qr_hash"] = qrCodeData.Hash
-	result.Details["stored_hash"] = document.DocumentHash
 
 	// Compare hashes (encode uploaded hash in same format as stored hash)
 	uploadedHashStr := encodeHashForComparison(uploadedHash)
 	result.HashMatches = (uploadedHashStr == document.DocumentHash)
-	result.Details["uploaded_hash"] = uploadedHashStr
-	result.Details["hash_matches"] = result.HashMatches
 
 	// Decode and verify signature
 	signatureData, err := s.documentService.DecodeSignatureData(document.SignatureData)
 	if err != nil {
 		result.Status = StatusError
 		result.Message = "Failed to decode signature data"
-		result.Details["signature_decode_error"] = err.Error()
 		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
 		return result, nil
 	}
@@ -198,26 +201,31 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 	// Verify signature against original hash (from database)
 	err = s.signatureService.VerifySignature(signatureData.Hash, signatureData)
 	result.SignatureValid = (err == nil)
-	result.Details["signature_valid"] = result.SignatureValid
-	if err != nil {
-		result.Details["signature_error"] = err.Error()
+
+	// Set details for frontend
+	result.Details = VerificationDetails{
+		QRValid:        result.QRCodeValid,
+		HashMatches:    result.HashMatches,
+		SignatureValid: result.SignatureValid,
+		OriginalHash:   document.DocumentHash,
+		UploadedHash:   uploadedHashStr,
 	}
 
 	// Determine final verification result
 	if !result.QRCodeValid {
-		result.Status = StatusInvalid
+		result.Status = "invalid"
 		result.Message = "❌ QR invalid / signature incorrect"
 		result.IsValid = false
 	} else if !result.SignatureValid {
-		result.Status = StatusInvalid
+		result.Status = "invalid"
 		result.Message = "❌ QR invalid / signature incorrect"
 		result.IsValid = false
 	} else if !result.HashMatches {
-		result.Status = StatusQRValidContentChanged
+		result.Status = "modified"
 		result.Message = "⚠️ QR valid, but file content has changed"
 		result.IsValid = false
 	} else {
-		result.Status = StatusValid
+		result.Status = "valid"
 		result.Message = "✅ Document is valid"
 		result.IsValid = true
 	}

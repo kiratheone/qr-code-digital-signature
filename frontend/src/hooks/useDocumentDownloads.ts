@@ -5,13 +5,12 @@
 
 import { useState } from 'react';
 import { DocumentService } from '@/lib/services/DocumentService';
-import { ApiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 export function useDocumentDownloads() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const apiClient = new ApiClient();
   const documentService = new DocumentService(apiClient);
 
   const downloadPDF = async (documentId: string, filename: string) => {

@@ -22,7 +22,8 @@ export class VerificationService {
       throw new Error('Document ID is required');
     }
 
-    return this.apiClient.get<VerificationInfo>(`/verify/${documentId}`);
+    const response = await this.apiClient.get<{ verification_info: VerificationInfo }>(`/verify/${documentId}`);
+    return response.verification_info || response as any;
   }
 
   /**
@@ -47,7 +48,8 @@ export class VerificationService {
     const formData = new FormData();
     formData.append('file', file);
 
-    return this.apiClient.post<VerificationResult>(`/verify/${documentId}/upload`, formData);
+    const response = await this.apiClient.post<{ verification_result: VerificationResult }>(`/verify/${documentId}/upload`, formData);
+    return response.verification_result || response as any;
   }
 
   /**

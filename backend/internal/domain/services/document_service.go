@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"digital-signature-system/internal/domain/entities"
@@ -291,7 +292,11 @@ func (s *DocumentService) GetQRCodeImage(ctx context.Context, userID, documentID
 	}
 
 	// Generate filename
-	filename := fmt.Sprintf("%s_qr_code.png", document.Filename[:len(document.Filename)-4]) // Remove .pdf extension
+	baseName := document.Filename
+	if len(baseName) > 4 && strings.ToLower(baseName[len(baseName)-4:]) == ".pdf" {
+		baseName = baseName[:len(baseName)-4] // Remove .pdf extension
+	}
+	filename := fmt.Sprintf("%s_qr_code.png", baseName)
 
 	return qrCodeImage, filename, nil
 }
