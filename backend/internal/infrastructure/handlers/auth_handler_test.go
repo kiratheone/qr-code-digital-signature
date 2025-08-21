@@ -80,7 +80,7 @@ func TestAuthHandler_Register(t *testing.T) {
 			name: "successful registration",
 			requestBody: RegisterRequest{
 				Username: "testuser",
-				Password: "password123",
+				Password: "Password123!",
 				FullName: "Test User",
 				Email:    "test@example.com",
 			},
@@ -89,7 +89,7 @@ func TestAuthHandler_Register(t *testing.T) {
 		{
 			name: "invalid request - missing username",
 			requestBody: RegisterRequest{
-				Password: "password123",
+				Password: "Password123!",
 				FullName: "Test User",
 				Email:    "test@example.com",
 			},
@@ -111,7 +111,7 @@ func TestAuthHandler_Register(t *testing.T) {
 			name: "invalid request - invalid email",
 			requestBody: RegisterRequest{
 				Username: "testuser",
-				Password: "password123",
+				Password: "Password123!",
 				FullName: "Test User",
 				Email:    "invalid-email",
 			},
@@ -151,7 +151,7 @@ func TestAuthHandler_Login(t *testing.T) {
 
 	registerReq := services.RegisterRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 		FullName: "Test User",
 		Email:    "test@example.com",
 	}
@@ -168,7 +168,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			name: "successful login",
 			requestBody: LoginRequest{
 				Username: "testuser",
-				Password: "password123",
+				Password: "Password123!",
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -176,7 +176,7 @@ func TestAuthHandler_Login(t *testing.T) {
 			name: "invalid username",
 			requestBody: LoginRequest{
 				Username: "nonexistent",
-				Password: "password123",
+				Password: "Password123!",
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedError:  ErrCodeUnauthorized,
@@ -245,7 +245,7 @@ func TestAuthHandler_GetProfile(t *testing.T) {
 
 	registerReq := services.RegisterRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 		FullName: "Test User",
 		Email:    "test@example.com",
 	}
@@ -254,7 +254,7 @@ func TestAuthHandler_GetProfile(t *testing.T) {
 
 	loginReq := services.LoginRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 	}
 	loginResp, err := authService.Login(context.Background(), loginReq)
 	require.NoError(t, err)
@@ -325,7 +325,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 
 	registerReq := services.RegisterRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 		FullName: "Test User",
 		Email:    "test@example.com",
 	}
@@ -334,7 +334,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 
 	loginReq := services.LoginRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 	}
 	loginResp, err := authService.Login(context.Background(), loginReq)
 	require.NoError(t, err)
@@ -390,7 +390,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 
 	registerReq := services.RegisterRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 		FullName: "Test User",
 		Email:    "test@example.com",
 	}
@@ -399,7 +399,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 
 	loginReq := services.LoginRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 	}
 	loginResp, err := authService.Login(context.Background(), loginReq)
 	require.NoError(t, err)
@@ -415,8 +415,8 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 			name:  "successful password change",
 			token: loginResp.Token,
 			requestBody: ChangePasswordRequest{
-				OldPassword: "password123",
-				NewPassword: "newpassword123",
+				OldPassword: "Password123!",
+				NewPassword: "NewPassword123!",
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -425,7 +425,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 			token: loginResp.Token,
 			requestBody: ChangePasswordRequest{
 				OldPassword: "wrongpassword",
-				NewPassword: "newpassword123",
+				NewPassword: "NewPassword123!",
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedError:  ErrCodeUnauthorized,
@@ -434,7 +434,7 @@ func TestAuthHandler_ChangePassword(t *testing.T) {
 			name:  "weak new password",
 			token: loginResp.Token,
 			requestBody: ChangePasswordRequest{
-				OldPassword: "password123",
+				OldPassword: "Password123!",
 				NewPassword: "weak",
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -486,7 +486,7 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 
 	registerReq := services.RegisterRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 		FullName: "Test User",
 		Email:    "test@example.com",
 	}
@@ -495,7 +495,7 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 
 	loginReq := services.LoginRequest{
 		Username: "testuser",
-		Password: "password123",
+		Password: "Password123!",
 	}
 	loginResp, err := authService.Login(context.Background(), loginReq)
 	require.NoError(t, err)

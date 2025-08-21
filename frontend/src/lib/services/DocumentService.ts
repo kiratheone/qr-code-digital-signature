@@ -17,7 +17,7 @@ export class DocumentService {
   /**
    * Sign a PDF document with digital signature
    */
-  async signDocument(file: File, issuer: string): Promise<SignDocumentResponse> {
+  async signDocument(file: File, issuer: string, letterNumber: string): Promise<SignDocumentResponse> {
     // Validate input
     if (!file) {
       throw new Error('File is required');
@@ -31,11 +31,15 @@ export class DocumentService {
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
       throw new Error('File size must be less than 50MB');
     }
+    if (!letterNumber.trim()) {
+      throw new Error('Letter number is required');
+    }
 
     // Create form data for file upload
     const formData = new FormData();
     formData.append('file', file);
     formData.append('issuer', issuer.trim());
+  formData.append('letter_number', letterNumber.trim());
 
     return this.apiClient.post<SignDocumentResponse>('/documents/sign', formData);
   }

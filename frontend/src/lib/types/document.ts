@@ -3,6 +3,7 @@ export interface Document {
   user_id: string;
   filename: string;
   issuer: string;
+  letter_number?: string;
   document_hash: string;
   signature_data: string;
   qr_code_data: string;
@@ -15,6 +16,7 @@ export interface Document {
 export interface SignDocumentRequest {
   file: File;
   issuer: string;
+  letterNumber: string; // Required for new documents
 }
 
 export interface SignDocumentResponse {

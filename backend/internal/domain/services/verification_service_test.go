@@ -39,8 +39,6 @@ func (m *MockVerificationLogRepository) GetByID(ctx context.Context, id string) 
 	return args.Get(0).(*entities.VerificationLog), args.Error(1)
 }
 
-
-
 func TestVerificationService_GetVerificationInfo(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -53,13 +51,14 @@ func TestVerificationService_GetVerificationInfo(t *testing.T) {
 			documentID: "doc-123",
 			setupMocks: func(docRepo *MockDocumentRepository) {
 				document := &entities.Document{
-					ID:        "doc-123",
-					UserID:    "user-123",
-					Filename:  "test.pdf",
-					Issuer:    "John Doe",
-					CreatedAt: time.Now(),
-					FileSize:  1024,
-					Status:    "active",
+					ID:           "doc-123",
+					UserID:       "user-123",
+					Filename:     "test.pdf",
+					Issuer:       "John Doe",
+					LetterNumber: stringPtr("LN-123"),
+					CreatedAt:    time.Now(),
+					FileSize:     1024,
+					Status:       "active",
 				}
 				docRepo.On("GetByID", mock.Anything, "doc-123").Return(document, nil)
 			},
@@ -163,6 +162,7 @@ func TestVerificationService_VerifyDocument(t *testing.T) {
 					SignatureData: testSignatureJSON,
 					QRCodeData:    string(testQRCodeJSON),
 					Status:        "active",
+					LetterNumber:  stringPtr("LN-123"),
 				}
 				docRepo.On("GetByID", mock.Anything, "doc-123").Return(document, nil)
 
@@ -210,6 +210,7 @@ func TestVerificationService_VerifyDocument(t *testing.T) {
 					SignatureData: testSignatureJSON,
 					QRCodeData:    string(testQRCodeJSON),
 					Status:        "active",
+					LetterNumber:  stringPtr("LN-123"),
 				}
 				docRepo.On("GetByID", mock.Anything, "doc-123").Return(document, nil)
 
@@ -244,6 +245,7 @@ func TestVerificationService_VerifyDocument(t *testing.T) {
 					SignatureData: testSignatureJSON,
 					QRCodeData:    string(testQRCodeJSON),
 					Status:        "active",
+					LetterNumber:  stringPtr("LN-123"),
 				}
 				docRepo.On("GetByID", mock.Anything, "doc-123").Return(document, nil)
 

@@ -12,6 +12,7 @@ type Document struct {
 	UserID        string    `json:"user_id" gorm:"not null;index:idx_documents_user_id"`
 	Filename      string    `json:"filename" gorm:"not null"`
 	Issuer        string    `json:"issuer" gorm:"not null"`
+	LetterNumber  *string   `json:"letter_number,omitempty" gorm:"index:idx_documents_letter_number"`
 	DocumentHash  string    `json:"document_hash" gorm:"not null;index:idx_documents_hash"`
 	SignatureData string    `json:"signature_data" gorm:"not null"`
 	QRCodeData    string    `json:"qr_code_data" gorm:"not null"`

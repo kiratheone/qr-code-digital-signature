@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"digital-signature-system/internal/domain/services"
 )
 
 // StandardError represents a standardized error response
@@ -17,18 +20,18 @@ type StandardError struct {
 // Error codes for different types of errors
 const (
 	ErrCodeInvalidRequest     = "INVALID_REQUEST"
-	ErrCodeUnauthorized      = "UNAUTHORIZED"
-	ErrCodeForbidden         = "FORBIDDEN"
-	ErrCodeNotFound          = "NOT_FOUND"
-	ErrCodeConflict          = "CONFLICT"
-	ErrCodeValidationFailed  = "VALIDATION_FAILED"
-	ErrCodeInternalError     = "INTERNAL_ERROR"
+	ErrCodeUnauthorized       = "UNAUTHORIZED"
+	ErrCodeForbidden          = "FORBIDDEN"
+	ErrCodeNotFound           = "NOT_FOUND"
+	ErrCodeConflict           = "CONFLICT"
+	ErrCodeValidationFailed   = "VALIDATION_FAILED"
+	ErrCodeInternalError      = "INTERNAL_ERROR"
 	ErrCodeServiceUnavailable = "SERVICE_UNAVAILABLE"
-	ErrCodeRateLimitExceeded = "RATE_LIMIT_EXCEEDED"
-	ErrCodeInvalidFile       = "INVALID_FILE"
-	ErrCodeFileTooLarge      = "FILE_TOO_LARGE"
-	ErrCodeInvalidPDF        = "INVALID_PDF"
-	ErrCodeSignatureFailed   = "SIGNATURE_FAILED"
+	ErrCodeRateLimitExceeded  = "RATE_LIMIT_EXCEEDED"
+	ErrCodeInvalidFile        = "INVALID_FILE"
+	ErrCodeFileTooLarge       = "FILE_TOO_LARGE"
+	ErrCodeInvalidPDF         = "INVALID_PDF"
+	ErrCodeSignatureFailed    = "SIGNATURE_FAILED"
 	ErrCodeVerificationFailed = "VERIFICATION_FAILED"
 )
 
@@ -95,19 +98,43 @@ func RespondWithConflictError(c *gin.Context, message string, details ...string)
 
 // MapServiceErrorToHTTP maps service layer errors to HTTP responses
 func MapServiceErrorToHTTP(c *gin.Context, err error) {
-	switch err.Error() {
-	case "invalid credentials":
+	// Prefer comparing against exported service errors where available
+	if errors.Is(err, services.ErrInvalidCredentials) {
 		RespondWithUnauthorizedError(c, "Invalid username or password")
-	case "user already exists":
+		return
+	}
+	// Support plain string errors for backward compatibility and tests
+	if err.Error() == "invalid credentials" {
+		RespondWithUnauthorizedError(c, "Invalid username or password")
+		return
+	}
+	if errors.Is(err, services.ErrUserAlreadyExists) {
 		RespondWithConflictError(c, "Username or email already exists")
-	case "user not found":
+		return
+	}
+	if errors.Is(err, services.ErrUserNotFound) {
 		RespondWithNotFoundError(c, "User not found")
-	case "user inactive":
+		return
+	}
+	if err.Error() == "user not found" {
+		RespondWithNotFoundError(c, "User not found")
+		return
+	}
+	if errors.Is(err, services.ErrUserInactive) {
 		RespondWithForbiddenError(c, "User account is inactive")
-	case "invalid token":
+		return
+	}
+	if errors.Is(err, services.ErrInvalidToken) {
 		RespondWithUnauthorizedError(c, "Invalid or malformed token")
-	case "session expired":
+		return
+	}
+	if errors.Is(err, services.ErrSessionExpired) {
 		RespondWithUnauthorizedError(c, "Token has expired")
+		return
+	}
+
+	// Fallback to string matching for other service error messages
+	switch err.Error() {
 	case "document not found":
 		RespondWithNotFoundError(c, "Document not found")
 	case "access denied: document belongs to different user":

@@ -81,6 +81,10 @@ export function VerificationForm({
               <dd className="mt-1 text-sm text-gray-900">{documentInfo.issuer}</dd>
             </div>
             <div>
+              <dt className="text-sm font-medium text-gray-500">Letter Number</dt>
+              <dd className="mt-1 text-sm text-gray-900">{documentInfo.letter_number && documentInfo.letter_number.trim() ? documentInfo.letter_number : 'Not provided'}</dd>
+            </div>
+            <div>
               <dt className="text-sm font-medium text-gray-500">Signed Date</dt>
               <dd className="mt-1 text-sm text-gray-900">{formatDate(documentInfo.created_at)}</dd>
             </div>

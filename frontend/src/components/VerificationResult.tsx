@@ -206,6 +206,13 @@ export function VerificationResult({
             <strong>Message:</strong> {result.message}
           </p>
           
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700">Letter Number</label>
+            <div className="mt-1 p-2 bg-gray-50 rounded-md">
+              <span className="text-sm text-gray-900">{result.details.letter_number && result.details.letter_number.trim() ? result.details.letter_number : 'Not provided'}</span>
+            </div>
+          </div>
+
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
             <h4 className="text-sm font-medium text-blue-800 mb-2">What this means:</h4>
             <div className="text-sm text-blue-700">

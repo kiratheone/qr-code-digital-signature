@@ -13,6 +13,13 @@ import (
 	"digital-signature-system/internal/domain/repositories"
 )
 
+// Helper function to create a pointer to a string
+func stringPtr(s string) *string {
+	return &s
+}
+
+const testUserID = "test-user-id"
+
 func setupDocumentTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
@@ -43,6 +50,7 @@ func setupDocumentTestDB(t *testing.T) *gorm.DB {
 			user_id TEXT NOT NULL,
 			filename TEXT NOT NULL,
 			issuer TEXT NOT NULL,
+			letter_number TEXT NOT NULL,
 			document_hash TEXT NOT NULL,
 			signature_data TEXT NOT NULL,
 			qr_code_data TEXT NOT NULL,
@@ -85,15 +93,13 @@ func TestDocumentRepository_Create(t *testing.T) {
 	db.Create(user)
 
 	doc := &entities.Document{
-		ID:            uuid.New().String(),
-		UserID:        user.ID,
+		UserID:        testUserID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
-		DocumentHash:  "testhash123",
-		SignatureData: "testsignature",
-		QRCodeData:    "testqrcode",
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		LetterNumber:  stringPtr("LN-001"),
+		DocumentHash:  "test-hash",
+		SignatureData: "test-signature",
+		QRCodeData:    "test-qr-data",
 		FileSize:      1024,
 		Status:        "active",
 	}
@@ -136,6 +142,7 @@ func TestDocumentRepository_GetByHash(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		LetterNumber:  stringPtr("LN-002"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
 		QRCodeData:    "testqrcode",
@@ -194,6 +201,7 @@ func TestDocumentRepository_GetByUserID(t *testing.T) {
 			UserID:        user.ID,
 			Filename:      "test.pdf",
 			Issuer:        "Test Issuer",
+			LetterNumber:  stringPtr("LN-00X"),
 			DocumentHash:  "testhash" + string(rune(i)),
 			SignatureData: "testsignature",
 			QRCodeData:    "testqrcode",
@@ -250,6 +258,7 @@ func TestDocumentRepository_GetByID(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		LetterNumber:  stringPtr("LN-004"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
 		QRCodeData:    "testqrcode",
@@ -310,11 +319,12 @@ func TestDocumentRepository_Update(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		LetterNumber:  stringPtr("LN-005"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
 		QRCodeData:    "testqrcode",
 		CreatedAt:     time.Now(),
-		UpdatedAt:    time.Now(),
+		UpdatedAt:     time.Now(),
 		FileSize:      1024,
 		Status:        "active",
 	}
@@ -367,6 +377,7 @@ func TestDocumentRepository_Delete(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		LetterNumber:  stringPtr("LN-006"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
 		QRCodeData:    "testqrcode",

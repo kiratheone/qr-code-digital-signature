@@ -12,7 +12,7 @@ import { useFormValidation, commonRules } from '@/hooks/useFormValidation';
 import { ApiClientError } from '@/lib/api';
 
 interface DocumentUploadFormProps {
-  onUpload: (file: File, issuer: string) => void;
+  onUpload: (file: File, issuer: string, letterNumber: string) => void;
   isLoading?: boolean;
   error?: Error | ApiClientError | string | null;
   onErrorDismiss?: () => void;
@@ -37,12 +37,17 @@ export function DocumentUploadForm({
     getFieldError,
     hasFieldError,
   } = useFormValidation(
-    { issuer: '' },
+    { issuer: '', letterNumber: '' },
     {
       issuer: {
         required: true,
         minLength: 2,
         maxLength: 100,
+      },
+      letterNumber: {
+        required: true,
+        minLength: 1,
+        maxLength: 50,
       },
     }
   );
@@ -78,8 +83,8 @@ export function DocumentUploadForm({
       return;
     }
 
-    if (file && values.issuer.trim()) {
-      onUpload(file, values.issuer.trim());
+    if (file && values.issuer.trim() && values.letterNumber.trim()) {
+      onUpload(file, values.issuer.trim(), values.letterNumber.trim());
     }
   };
 
@@ -135,6 +140,19 @@ export function DocumentUploadForm({
           required
         />
 
+        <Input
+          label="Letter Number"
+          type="text"
+          value={values.letterNumber}
+          onChange={(e) => handleChange('letterNumber', e.target.value)}
+          onBlur={() => handleBlur('letterNumber')}
+          placeholder="Enter letter number (e.g., 001/2025)"
+          error={getFieldError('letterNumber') || undefined}
+          helperText="Document reference number for identification"
+          disabled={isLoading}
+          required
+        />
+
         <div className="flex justify-between">
           <Button
             type="button"
@@ -149,7 +167,7 @@ export function DocumentUploadForm({
             type="submit"
             variant="primary"
             isLoading={isLoading}
-            disabled={!file || !values.issuer.trim() || isLoading || hasFieldError('issuer') || !!validateFile(file)}
+            disabled={!file || !values.issuer.trim() || !values.letterNumber.trim() || isLoading || hasFieldError('issuer') || hasFieldError('letterNumber') || !!validateFile(file)}
           >
             {isLoading ? 'Signing Document...' : 'Sign Document'}
           </Button>

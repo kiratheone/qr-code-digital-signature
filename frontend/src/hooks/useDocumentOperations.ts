@@ -48,8 +48,8 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
 
   // Mutation for signing documents
   const signDocumentMutation = useMutation({
-    mutationFn: ({ file, issuer }: { file: File; issuer: string }) =>
-      documentService.signDocument(file, issuer),
+    mutationFn: ({ file, issuer, letterNumber }: { file: File; issuer: string; letterNumber: string }) =>
+      documentService.signDocument(file, issuer, letterNumber),
     onSuccess: (data: SignDocumentResponse) => {
       // Invalidate and refetch documents list
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
@@ -95,7 +95,7 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
     lastError,
     
     // Actions
-    signDocument: signDocumentMutation.mutate,
+  signDocument: signDocumentMutation.mutate,
     deleteDocument: deleteDocumentMutation.mutate,
     
     // Utilities

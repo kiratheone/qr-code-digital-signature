@@ -28,6 +28,7 @@ describe('DocumentUploadForm', () => {
     expect(screen.getByText('Sign PDF Document')).toBeInTheDocument();
     expect(screen.getByLabelText(/PDF Document/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Issuer Name/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/Letter Number/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign Document/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Reset Form/i })).toBeInTheDocument();
   });
@@ -61,9 +62,9 @@ describe('DocumentUploadForm', () => {
     // Initially disabled
     expect(submitButton).toBeDisabled();
 
-    // Still disabled with just issuer (need file too)
-    fireEvent.change(issuerInput, { target: { value: 'John Doe' } });
-    expect(submitButton).toBeDisabled(); // Still disabled because no file
+  // Still disabled with just issuer (need file and letter number too)
+  fireEvent.change(issuerInput, { target: { value: 'John Doe' } });
+  expect(submitButton).toBeDisabled(); // Still disabled because no file
   });
 
   it('should call onUpload when form is valid', async () => {
@@ -82,7 +83,7 @@ describe('DocumentUploadForm', () => {
     // Note: File input testing is complex with drag/drop, so we'll focus on the issuer validation
     // In a real test, you'd need to mock the file input behavior
     
-    expect(issuerInput).toHaveValue('John Doe');
+  expect(issuerInput).toHaveValue('John Doe');
   });
 
   it('should display error message when provided', () => {
@@ -97,7 +98,7 @@ describe('DocumentUploadForm', () => {
       />
     );
 
-    expect(screen.getByText('Error')).toBeInTheDocument();
+  expect(screen.getByText('Error')).toBeInTheDocument();
     expect(screen.getByText(errorMessage)).toBeInTheDocument();
     
     const dismissButton = screen.getByText('Dismiss');
@@ -134,11 +135,14 @@ describe('DocumentUploadForm', () => {
 
     // Add some content
     fireEvent.change(issuerInput, { target: { value: 'John Doe' } });
+  const letterInput = screen.getByLabelText(/Letter Number/i);
+  fireEvent.change(letterInput, { target: { value: '001/2025' } });
     expect(issuerInput).toHaveValue('John Doe');
 
     // Reset form
     fireEvent.click(resetButton);
-    expect(issuerInput).toHaveValue('');
+  expect(issuerInput).toHaveValue('');
+  expect(letterInput).toHaveValue('');
   });
 
   it('should update issuer input value', () => {

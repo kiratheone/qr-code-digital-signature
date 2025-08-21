@@ -26,6 +26,14 @@ func NewDocumentHandler(documentService *services.DocumentService) *DocumentHand
 	}
 }
 
+// Helper function to convert nullable LetterNumber for logging
+func getLetterNumberForLogging(letterNumber *string) string {
+	if letterNumber == nil {
+		return ""
+	}
+	return *letterNumber
+}
+
 // SignDocument handles POST /api/documents/sign
 func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	// Get user ID from authentication context
@@ -71,6 +79,14 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		return
 	}
 
+	// Get and validate letter number from form
+	letterNumber := c.Request.FormValue("letter_number")
+	sanitizedLetterNumber, letterValidationErr := h.validator.ValidateAndSanitizeString("letter_number", letterNumber, 1, 50, true)
+	if letterValidationErr != nil {
+		RespondWithValidationError(c, "Invalid letter number", letterValidationErr.Error())
+		return
+	}
+
 	// Use streaming to read PDF data with size limit for better performance
 	pdfData, err := h.documentService.ReadPDFFromStream(file)
 	if err != nil {
@@ -80,10 +96,11 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 
 	// Create request
 	req := &services.SignDocumentRequest{
-		Filename: filename,
-		Issuer:   sanitizedIssuer,
-		PDFData:  pdfData,
-		UserID:   userID.(string),
+		Filename:     filename,
+		Issuer:       sanitizedIssuer,
+		LetterNumber: sanitizedLetterNumber,
+		PDFData:      pdfData,
+		UserID:       userID.(string),
 	}
 
 	// Get user info for logging
@@ -102,11 +119,12 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 			c.ClientIP(),
 			"FAILURE",
 			map[string]interface{}{
-				"filename": filename,
-				"issuer": sanitizedIssuer,
-				"file_size": len(pdfData),
-				"error": err.Error(),
-				"endpoint": "/api/documents/sign",
+				"filename":      filename,
+				"issuer":        sanitizedIssuer,
+				"letter_number": sanitizedLetterNumber,
+				"file_size":     len(pdfData),
+				"error":         err.Error(),
+				"endpoint":      "/api/documents/sign",
 			},
 		)
 		MapServiceErrorToHTTP(c, err)
@@ -122,10 +140,11 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		c.ClientIP(),
 		"SUCCESS",
 		map[string]interface{}{
-			"filename": response.Document.Filename,
-			"issuer": response.Document.Issuer,
-			"file_size": len(pdfData),
-			"endpoint": "/api/documents/sign",
+			"filename":      response.Document.Filename,
+			"issuer":        response.Document.Issuer,
+			"letter_number": getLetterNumberForLogging(response.Document.LetterNumber),
+			"file_size":     len(pdfData),
+			"endpoint":      "/api/documents/sign",
 		},
 	)
 
@@ -233,11 +252,11 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		c.ClientIP(),
 		"SUCCESS",
 		map[string]interface{}{
-			"page": req.Page,
-			"page_size": req.PageSize,
-			"status": req.Status,
+			"page":            req.Page,
+			"page_size":       req.PageSize,
+			"status":          req.Status,
 			"total_documents": len(response.Documents),
-			"endpoint": "/api/documents",
+			"endpoint":        "/api/documents",
 		},
 	)
 
@@ -282,7 +301,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 			c.ClientIP(),
 			"FAILURE",
 			map[string]interface{}{
-				"error": err.Error(),
+				"error":    err.Error(),
 				"endpoint": "/api/documents/" + documentID,
 			},
 		)
@@ -300,7 +319,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		"SUCCESS",
 		map[string]interface{}{
 			"filename": document.Filename,
-			"issuer": document.Issuer,
+			"issuer":   document.Issuer,
 			"endpoint": "/api/documents/" + documentID,
 		},
 	)
@@ -346,7 +365,7 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 			c.ClientIP(),
 			"FAILURE",
 			map[string]interface{}{
-				"error": err.Error(),
+				"error":    err.Error(),
 				"endpoint": "/api/documents/" + documentID,
 			},
 		)
@@ -409,8 +428,8 @@ func (h *DocumentHandler) DownloadQRCode(c *gin.Context) {
 			"FAILURE",
 			map[string]interface{}{
 				"operation": "qr_code_download",
-				"error": err.Error(),
-				"endpoint": "/api/documents/" + documentID + "/qr-code",
+				"error":     err.Error(),
+				"endpoint":  "/api/documents/" + documentID + "/qr-code",
 			},
 		)
 		MapServiceErrorToHTTP(c, err)
@@ -427,8 +446,8 @@ func (h *DocumentHandler) DownloadQRCode(c *gin.Context) {
 		"SUCCESS",
 		map[string]interface{}{
 			"operation": "qr_code_download",
-			"filename": filename,
-			"endpoint": "/api/documents/" + documentID + "/qr-code",
+			"filename":  filename,
+			"endpoint":  "/api/documents/" + documentID + "/qr-code",
 		},
 	)
 
@@ -480,8 +499,8 @@ func (h *DocumentHandler) DownloadSignedPDF(c *gin.Context) {
 			"FAILURE",
 			map[string]interface{}{
 				"operation": "pdf_download",
-				"error": err.Error(),
-				"endpoint": "/api/documents/" + documentID + "/download",
+				"error":     err.Error(),
+				"endpoint":  "/api/documents/" + documentID + "/download",
 			},
 		)
 		MapServiceErrorToHTTP(c, err)
@@ -498,9 +517,9 @@ func (h *DocumentHandler) DownloadSignedPDF(c *gin.Context) {
 		"SUCCESS",
 		map[string]interface{}{
 			"operation": "pdf_download",
-			"filename": filename,
+			"filename":  filename,
 			"file_size": len(pdfData),
-			"endpoint": "/api/documents/" + documentID + "/download",
+			"endpoint":  "/api/documents/" + documentID + "/download",
 		},
 	)
 

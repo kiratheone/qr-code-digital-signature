@@ -39,17 +39,18 @@ type DocumentService struct {
 
 // SignDocumentRequest represents the request to sign a document
 type SignDocumentRequest struct {
-	Filename    string `json:"filename" binding:"required"`
-	Issuer      string `json:"issuer" binding:"required"`
-	PDFData     []byte `json:"-"` // PDF file data
-	UserID      string `json:"-"` // Set from authentication context
+	Filename     string `json:"filename" binding:"required"`
+	Issuer       string `json:"issuer" binding:"required"`
+	LetterNumber string `json:"letter_number" binding:"required"`
+	PDFData      []byte `json:"-"` // PDF file data
+	UserID       string `json:"-"` // Set from authentication context
 }
 
 // SignDocumentResponse represents the response after signing a document
 type SignDocumentResponse struct {
 	Document       *entities.Document `json:"document"`
-	SignedPDFData  []byte            `json:"signed_pdf_data,omitempty"`
-	QRCodeImageURL string            `json:"qr_code_image_url,omitempty"`
+	SignedPDFData  []byte             `json:"signed_pdf_data,omitempty"`
+	QRCodeImageURL string             `json:"qr_code_image_url,omitempty"`
 }
 
 // GetDocumentsRequest represents the request to get documents
@@ -62,11 +63,11 @@ type GetDocumentsRequest struct {
 
 // GetDocumentsResponse represents the response for getting documents
 type GetDocumentsResponse struct {
-	Documents []*entities.Document `json:"documents"`
-	Total     int64               `json:"total"`
-	Page      int                 `json:"page"`
-	PageSize  int                 `json:"page_size"`
-	TotalPages int                `json:"total_pages"`
+	Documents  []*entities.Document `json:"documents"`
+	Total      int64                `json:"total"`
+	Page       int                  `json:"page"`
+	PageSize   int                  `json:"page_size"`
+	TotalPages int                  `json:"total_pages"`
 }
 
 // NewDocumentService creates a new document service
@@ -106,6 +107,7 @@ func (s *DocumentService) SignDocument(ctx context.Context, req *SignDocumentReq
 		UserID:        req.UserID,
 		Filename:      req.Filename,
 		Issuer:        req.Issuer,
+		LetterNumber:  &req.LetterNumber, // Convert string to *string
 		DocumentHash:  base64.StdEncoding.EncodeToString(documentHash),
 		SignatureData: s.encodeSignatureData(signatureData),
 		FileSize:      int64(len(req.PDFData)),
@@ -312,7 +314,7 @@ func (s *DocumentService) GetSignedPDF(ctx context.Context, userID, documentID s
 	// For now, we'll return a placeholder since we don't store the actual PDF data
 	// In a production system, you would store the signed PDF file and retrieve it here
 	// This is a simplified implementation that generates a basic response
-	
+
 	// Parse QR code data
 	var qrCodeData pdf.QRCodeData
 	if err := json.Unmarshal([]byte(document.QRCodeData), &qrCodeData); err != nil {
@@ -381,9 +383,9 @@ trailer
 >>
 startxref
 456
-%%%%EOF`, 
-		document.Filename, 
-		document.Issuer, 
+%%%%EOF`,
+		document.Filename,
+		document.Issuer,
 		document.CreatedAt.Format("2006-01-02 15:04:05"),
 		document.ID,
 		document.DocumentHash[:20]+"...")

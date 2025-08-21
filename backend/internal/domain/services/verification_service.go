@@ -20,11 +20,11 @@ type DocumentServiceInterface interface {
 
 // VerificationService handles document verification business logic
 type VerificationService struct {
-	documentRepo         repositories.DocumentRepository
-	verificationLogRepo  repositories.VerificationLogRepository
-	signatureService     SignatureServiceInterface
-	pdfService           PDFServiceInterface
-	documentService      DocumentServiceInterface
+	documentRepo        repositories.DocumentRepository
+	verificationLogRepo repositories.VerificationLogRepository
+	signatureService    SignatureServiceInterface
+	pdfService          PDFServiceInterface
+	documentService     DocumentServiceInterface
 }
 
 // VerificationInfo represents information about a document for verification
@@ -32,6 +32,7 @@ type VerificationInfo struct {
 	DocumentID   string    `json:"document_id"`
 	Filename     string    `json:"filename"`
 	Issuer       string    `json:"issuer"`
+	LetterNumber *string   `json:"letter_number,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	FileSize     int64     `json:"file_size"`
 	Status       string    `json:"status"`
@@ -48,33 +49,34 @@ type VerificationRequest struct {
 
 // VerificationResult represents the result of document verification
 type VerificationResult struct {
-	DocumentID     string                 `json:"document_id"`
-	IsValid        bool                   `json:"is_valid"`
-	Status         string                 `json:"status"`
-	Message        string                 `json:"message"`
-	Details        VerificationDetails    `json:"details"`
-	VerifiedAt     time.Time              `json:"verified_at"`
-	HashMatches    bool                   `json:"hash_matches"`
-	SignatureValid bool                   `json:"signature_valid"`
-	QRCodeValid    bool                   `json:"qr_code_valid"`
+	DocumentID     string              `json:"document_id"`
+	IsValid        bool                `json:"is_valid"`
+	Status         string              `json:"status"`
+	Message        string              `json:"message"`
+	Details        VerificationDetails `json:"details"`
+	VerifiedAt     time.Time           `json:"verified_at"`
+	HashMatches    bool                `json:"hash_matches"`
+	SignatureValid bool                `json:"signature_valid"`
+	QRCodeValid    bool                `json:"qr_code_valid"`
 }
 
 // VerificationDetails represents the detailed verification results
 type VerificationDetails struct {
-	QRValid        bool   `json:"qr_valid"`
-	HashMatches    bool   `json:"hash_matches"`
-	SignatureValid bool   `json:"signature_valid"`
-	OriginalHash   string `json:"original_hash"`
-	UploadedHash   string `json:"uploaded_hash"`
-	Error          string `json:"error,omitempty"`
+	QRValid        bool    `json:"qr_valid"`
+	HashMatches    bool    `json:"hash_matches"`
+	SignatureValid bool    `json:"signature_valid"`
+	OriginalHash   string  `json:"original_hash"`
+	UploadedHash   string  `json:"uploaded_hash"`
+	LetterNumber   *string `json:"letter_number,omitempty"`
+	Error          string  `json:"error,omitempty"`
 }
 
 // Verification status constants
 const (
-	StatusValid                = "valid"
+	StatusValid                 = "valid"
 	StatusQRValidContentChanged = "qr_valid_content_changed"
-	StatusInvalid              = "invalid"
-	StatusError                = "error"
+	StatusInvalid               = "invalid"
+	StatusError                 = "error"
 )
 
 // NewVerificationService creates a new verification service
@@ -115,6 +117,7 @@ func (s *VerificationService) GetVerificationInfo(ctx context.Context, documentI
 		DocumentID:   document.ID,
 		Filename:     document.Filename,
 		Issuer:       document.Issuer,
+		LetterNumber: document.LetterNumber,
 		CreatedAt:    document.CreatedAt,
 		FileSize:     document.FileSize,
 		Status:       document.Status,
@@ -125,21 +128,21 @@ func (s *VerificationService) GetVerificationInfo(ctx context.Context, documentI
 
 // VerifyDocument verifies a document against its stored signature and hash
 func (s *VerificationService) VerifyDocument(ctx context.Context, req *VerificationRequest) (*VerificationResult, error) {
-       result := &VerificationResult{
-	       DocumentID: req.DocumentID,
-	       VerifiedAt: time.Now(),
-	       Details:    VerificationDetails{},
-       }
+	result := &VerificationResult{
+		DocumentID: req.DocumentID,
+		VerifiedAt: time.Now(),
+		Details:    VerificationDetails{},
+	}
 
 	// Get original document from database
-       document, err := s.documentRepo.GetByID(ctx, req.DocumentID)
-       if err != nil {
-	       result.Status = StatusError
-	       result.Message = "Failed to retrieve document information"
-	       result.Details.Error = err.Error()
-	       s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
-	       return result, nil
-       }
+	document, err := s.documentRepo.GetByID(ctx, req.DocumentID)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to retrieve document information"
+		result.Details.Error = err.Error()
+		s.logVerification(ctx, req.DocumentID, result, req.VerifierIP)
+		return result, nil
+	}
 
 	if document == nil {
 		result.Status = StatusError
@@ -209,6 +212,7 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 		SignatureValid: result.SignatureValid,
 		OriginalHash:   document.DocumentHash,
 		UploadedHash:   uploadedHashStr,
+		LetterNumber:   document.LetterNumber,
 	}
 
 	// Determine final verification result
@@ -221,11 +225,11 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 		result.Message = "❌ QR invalid / signature incorrect"
 		result.IsValid = false
 	} else if !result.HashMatches {
-		result.Status = "modified"
+		result.Status = StatusQRValidContentChanged
 		result.Message = "⚠️ QR valid, but file content has changed"
 		result.IsValid = false
 	} else {
-		result.Status = "valid"
+		result.Status = StatusValid
 		result.Message = "✅ Document is valid"
 		result.IsValid = true
 	}

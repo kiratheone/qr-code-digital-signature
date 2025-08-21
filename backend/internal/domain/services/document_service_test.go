@@ -15,6 +15,11 @@ import (
 	"digital-signature-system/internal/infrastructure/pdf"
 )
 
+// Helper function to create a pointer to a string
+func stringPtr(s string) *string {
+	return &s
+}
+
 // Mock repositories and services
 type MockDocumentRepository struct {
 	mock.Mock
@@ -228,16 +233,18 @@ func TestDocumentService_GetDocuments(t *testing.T) {
 			setupMocks: func(docRepo *MockDocumentRepository) {
 				documents := []*entities.Document{
 					{
-						ID:       "doc-1",
-						UserID:   "user-123",
-						Filename: "test1.pdf",
-						Status:   "active",
+						ID:           "doc-1",
+						UserID:       "user-123",
+						Filename:     "test1.pdf",
+						Status:       "active",
+						LetterNumber: stringPtr("LN-001"),
 					},
 					{
-						ID:       "doc-2",
-						UserID:   "user-123",
-						Filename: "test2.pdf",
-						Status:   "active",
+						ID:           "doc-2",
+						UserID:       "user-123",
+						Filename:     "test2.pdf",
+						Status:       "active",
+						LetterNumber: stringPtr("LN-002"),
 					},
 				}
 				docRepo.On("GetByUserID", mock.Anything, "user-123", repositories.DocumentFilter{
