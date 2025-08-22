@@ -207,6 +207,13 @@ export function VerificationResult({
           </p>
           
           <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700">Document Title</label>
+            <div className="mt-1 p-2 bg-gray-50 rounded-md">
+              <span className="text-sm text-gray-900">{result.details.title && result.details.title.trim() ? result.details.title : 'Not provided'}</span>
+            </div>
+          </div>
+
+          <div className="mt-2">
             <label className="block text-sm font-medium text-gray-700">Letter Number</label>
             <div className="mt-1 p-2 bg-gray-50 rounded-md">
               <span className="text-sm text-gray-900">{result.details.letter_number && result.details.letter_number.trim() ? result.details.letter_number : 'Not provided'}</span>

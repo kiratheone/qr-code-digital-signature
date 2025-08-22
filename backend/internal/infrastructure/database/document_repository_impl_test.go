@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -50,7 +51,8 @@ func setupDocumentTestDB(t *testing.T) *gorm.DB {
 			user_id TEXT NOT NULL,
 			filename TEXT NOT NULL,
 			issuer TEXT NOT NULL,
-			letter_number TEXT NOT NULL,
+			title TEXT,
+			letter_number TEXT,
 			document_hash TEXT NOT NULL,
 			signature_data TEXT NOT NULL,
 			qr_code_data TEXT NOT NULL,
@@ -96,6 +98,7 @@ func TestDocumentRepository_Create(t *testing.T) {
 		UserID:        testUserID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		Title:         stringPtr("Test Document Title"),
 		LetterNumber:  stringPtr("LN-001"),
 		DocumentHash:  "test-hash",
 		SignatureData: "test-signature",
@@ -142,6 +145,7 @@ func TestDocumentRepository_GetByHash(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		Title:         stringPtr("Test Document Title 2"),
 		LetterNumber:  stringPtr("LN-002"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
@@ -201,6 +205,7 @@ func TestDocumentRepository_GetByUserID(t *testing.T) {
 			UserID:        user.ID,
 			Filename:      "test.pdf",
 			Issuer:        "Test Issuer",
+			Title:         stringPtr(fmt.Sprintf("Test Document %d", i+1)),
 			LetterNumber:  stringPtr("LN-00X"),
 			DocumentHash:  "testhash" + string(rune(i)),
 			SignatureData: "testsignature",
@@ -258,6 +263,7 @@ func TestDocumentRepository_GetByID(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		Title:         stringPtr("Test Document Title 4"),
 		LetterNumber:  stringPtr("LN-004"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
@@ -319,6 +325,7 @@ func TestDocumentRepository_Update(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		Title:         stringPtr("Test Document Title 5"),
 		LetterNumber:  stringPtr("LN-005"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",
@@ -377,6 +384,7 @@ func TestDocumentRepository_Delete(t *testing.T) {
 		UserID:        user.ID,
 		Filename:      "test.pdf",
 		Issuer:        "Test Issuer",
+		Title:         stringPtr("Test Document Title 6"),
 		LetterNumber:  stringPtr("LN-006"),
 		DocumentHash:  "testhash123",
 		SignatureData: "testsignature",

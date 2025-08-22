@@ -34,6 +34,14 @@ func getLetterNumberForLogging(letterNumber *string) string {
 	return *letterNumber
 }
 
+// Helper function to convert nullable Title for logging
+func getTitleForLogging(title *string) string {
+	if title == nil {
+		return ""
+	}
+	return *title
+}
+
 // SignDocument handles POST /api/documents/sign
 func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	// Get user ID from authentication context
@@ -79,6 +87,14 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		return
 	}
 
+	// Get and validate title from form
+	title := c.Request.FormValue("title")
+	sanitizedTitle, titleValidationErr := h.validator.ValidateAndSanitizeString("title", title, 1, 200, true)
+	if titleValidationErr != nil {
+		RespondWithValidationError(c, "Invalid title", titleValidationErr.Error())
+		return
+	}
+
 	// Get and validate letter number from form
 	letterNumber := c.Request.FormValue("letter_number")
 	sanitizedLetterNumber, letterValidationErr := h.validator.ValidateAndSanitizeString("letter_number", letterNumber, 1, 50, true)
@@ -98,6 +114,7 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 	req := &services.SignDocumentRequest{
 		Filename:     filename,
 		Issuer:       sanitizedIssuer,
+		Title:        sanitizedTitle,
 		LetterNumber: sanitizedLetterNumber,
 		PDFData:      pdfData,
 		UserID:       userID.(string),
@@ -142,6 +159,7 @@ func (h *DocumentHandler) SignDocument(c *gin.Context) {
 		map[string]interface{}{
 			"filename":      response.Document.Filename,
 			"issuer":        response.Document.Issuer,
+			"title":         getTitleForLogging(response.Document.Title),
 			"letter_number": getLetterNumberForLogging(response.Document.LetterNumber),
 			"file_size":     len(pdfData),
 			"endpoint":      "/api/documents/sign",

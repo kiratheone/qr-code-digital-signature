@@ -6,6 +6,8 @@ export interface VerificationInfo {
   document_id: string;
   filename: string;
   issuer: string;
+  // optional title of the document
+  title?: string;
   // optional letter/issue number associated with the signed document
   letter_number?: string;
   created_at: string;
@@ -26,6 +28,8 @@ export interface VerificationResult {
     signature_valid: boolean;
     original_hash: string;
     uploaded_hash: string;
+  // optional title of the document
+  title?: string | null;
   // letter number included with the verification details when available
   letter_number?: string | null;
   };

@@ -12,7 +12,7 @@ import { useFormValidation, commonRules } from '@/hooks/useFormValidation';
 import { ApiClientError } from '@/lib/api';
 
 interface DocumentUploadFormProps {
-  onUpload: (file: File, issuer: string, letterNumber: string) => void;
+  onUpload: (file: File, issuer: string, title: string, letterNumber: string) => void;
   isLoading?: boolean;
   error?: Error | ApiClientError | string | null;
   onErrorDismiss?: () => void;
@@ -37,12 +37,17 @@ export function DocumentUploadForm({
     getFieldError,
     hasFieldError,
   } = useFormValidation(
-    { issuer: '', letterNumber: '' },
+    { issuer: '', title: '', letterNumber: '' },
     {
       issuer: {
         required: true,
         minLength: 2,
         maxLength: 100,
+      },
+      title: {
+        required: true,
+        minLength: 1,
+        maxLength: 200,
       },
       letterNumber: {
         required: true,
@@ -83,8 +88,8 @@ export function DocumentUploadForm({
       return;
     }
 
-    if (file && values.issuer.trim() && values.letterNumber.trim()) {
-      onUpload(file, values.issuer.trim(), values.letterNumber.trim());
+    if (file && values.issuer.trim() && values.title.trim() && values.letterNumber.trim()) {
+      onUpload(file, values.issuer.trim(), values.title.trim(), values.letterNumber.trim());
     }
   };
 
@@ -141,6 +146,19 @@ export function DocumentUploadForm({
         />
 
         <Input
+          label="Document Title"
+          type="text"
+          value={values.title}
+          onChange={(e) => handleChange('title', e.target.value)}
+          onBlur={() => handleBlur('title')}
+          placeholder="Enter document title"
+          error={getFieldError('title') || undefined}
+          helperText="Title of the document being signed"
+          disabled={isLoading}
+          required
+        />
+
+        <Input
           label="Letter Number"
           type="text"
           value={values.letterNumber}
@@ -158,7 +176,7 @@ export function DocumentUploadForm({
             type="button"
             variant="secondary"
             onClick={handleReset}
-            disabled={isLoading || (!file && !values.issuer)}
+            disabled={isLoading || (!file && !values.issuer && !values.title)}
           >
             Reset Form
           </Button>
@@ -167,7 +185,7 @@ export function DocumentUploadForm({
             type="submit"
             variant="primary"
             isLoading={isLoading}
-            disabled={!file || !values.issuer.trim() || !values.letterNumber.trim() || isLoading || hasFieldError('issuer') || hasFieldError('letterNumber') || !!validateFile(file)}
+            disabled={!file || !values.issuer.trim() || !values.title.trim() || !values.letterNumber.trim() || isLoading || hasFieldError('issuer') || hasFieldError('title') || hasFieldError('letterNumber') || !!validateFile(file)}
           >
             {isLoading ? 'Signing Document...' : 'Sign Document'}
           </Button>

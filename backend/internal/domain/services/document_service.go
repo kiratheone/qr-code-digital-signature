@@ -41,6 +41,7 @@ type DocumentService struct {
 type SignDocumentRequest struct {
 	Filename     string `json:"filename" binding:"required"`
 	Issuer       string `json:"issuer" binding:"required"`
+	Title        string `json:"title" binding:"required"`
 	LetterNumber string `json:"letter_number" binding:"required"`
 	PDFData      []byte `json:"-"` // PDF file data
 	UserID       string `json:"-"` // Set from authentication context
@@ -107,6 +108,7 @@ func (s *DocumentService) SignDocument(ctx context.Context, req *SignDocumentReq
 		UserID:        req.UserID,
 		Filename:      req.Filename,
 		Issuer:        req.Issuer,
+		Title:         &req.Title,        // Convert string to *string
 		LetterNumber:  &req.LetterNumber, // Convert string to *string
 		DocumentHash:  base64.StdEncoding.EncodeToString(documentHash),
 		SignatureData: s.encodeSignatureData(signatureData),

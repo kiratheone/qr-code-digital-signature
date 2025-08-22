@@ -3,6 +3,7 @@ export interface Document {
   user_id: string;
   filename: string;
   issuer: string;
+  title?: string;
   letter_number?: string;
   document_hash: string;
   signature_data: string;
@@ -16,6 +17,7 @@ export interface Document {
 export interface SignDocumentRequest {
   file: File;
   issuer: string;
+  title: string; // Required for new documents
   letterNumber: string; // Required for new documents
 }
 

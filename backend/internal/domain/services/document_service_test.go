@@ -112,10 +112,12 @@ func TestDocumentService_SignDocument(t *testing.T) {
 		{
 			name: "successful document signing",
 			request: &SignDocumentRequest{
-				Filename: "test.pdf",
-				Issuer:   "John Doe",
-				PDFData:  []byte("%PDF-1.4 test content"),
-				UserID:   "user-123",
+				Filename:     "test.pdf",
+				Issuer:       "John Doe",
+				Title:        "Test Document Title",
+				LetterNumber: "LN-001",
+				PDFData:      []byte("%PDF-1.4 test content"),
+				UserID:       "user-123",
 			},
 			setupMocks: func(docRepo *MockDocumentRepository, sigService *MockSignatureService, pdfService *MockPDFService) {
 				// PDF validation and hash calculation
@@ -144,10 +146,12 @@ func TestDocumentService_SignDocument(t *testing.T) {
 		{
 			name: "invalid PDF data",
 			request: &SignDocumentRequest{
-				Filename: "test.pdf",
-				Issuer:   "John Doe",
-				PDFData:  []byte("invalid pdf data"),
-				UserID:   "user-123",
+				Filename:     "test.pdf",
+				Issuer:       "John Doe",
+				Title:        "Test Title",
+				LetterNumber: "LN-002",
+				PDFData:      []byte("invalid pdf data"),
+				UserID:       "user-123",
 			},
 			setupMocks: func(docRepo *MockDocumentRepository, sigService *MockSignatureService, pdfService *MockPDFService) {
 				pdfService.On("ValidatePDF", mock.AnythingOfType("[]uint8")).Return(assert.AnError)
@@ -157,10 +161,12 @@ func TestDocumentService_SignDocument(t *testing.T) {
 		{
 			name: "signature creation failure",
 			request: &SignDocumentRequest{
-				Filename: "test.pdf",
-				Issuer:   "John Doe",
-				PDFData:  []byte("%PDF-1.4 test content"),
-				UserID:   "user-123",
+				Filename:     "test.pdf",
+				Issuer:       "John Doe",
+				Title:        "Test Title",
+				LetterNumber: "LN-003",
+				PDFData:      []byte("%PDF-1.4 test content"),
+				UserID:       "user-123",
 			},
 			setupMocks: func(docRepo *MockDocumentRepository, sigService *MockSignatureService, pdfService *MockPDFService) {
 				pdfService.On("ValidatePDF", mock.AnythingOfType("[]uint8")).Return(nil)
@@ -237,6 +243,7 @@ func TestDocumentService_GetDocuments(t *testing.T) {
 						UserID:       "user-123",
 						Filename:     "test1.pdf",
 						Status:       "active",
+						Title:        stringPtr("Test Document 1"),
 						LetterNumber: stringPtr("LN-001"),
 					},
 					{
@@ -244,6 +251,7 @@ func TestDocumentService_GetDocuments(t *testing.T) {
 						UserID:       "user-123",
 						Filename:     "test2.pdf",
 						Status:       "active",
+						Title:        stringPtr("Test Document 2"),
 						LetterNumber: stringPtr("LN-002"),
 					},
 				}

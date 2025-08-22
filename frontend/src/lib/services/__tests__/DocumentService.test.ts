@@ -42,7 +42,7 @@ describe('DocumentService', () => {
     it('should sign document successfully', async () => {
       mockApiClient.post.mockResolvedValue(mockResponse);
 
-      const result = await documentService.signDocument(mockFile, 'John Doe', '001/2025');
+      const result = await documentService.signDocument(mockFile, 'John Doe', 'Test Document', '001/2025');
 
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/documents/sign',
@@ -53,21 +53,27 @@ describe('DocumentService', () => {
 
     it('should validate file is required', async () => {
       await expect(
-        documentService.signDocument(null as any, 'John Doe', '001/2025')
+        documentService.signDocument(null as any, 'John Doe', 'Test Document', '001/2025')
       ).rejects.toThrow('File is required');
     });
 
     it('should validate issuer is required', async () => {
       await expect(
-        documentService.signDocument(mockFile, '', '001/2025')
+        documentService.signDocument(mockFile, '', 'Test Document', '001/2025')
       ).rejects.toThrow('Issuer name is required');
+    });
+
+    it('should validate title is required', async () => {
+      await expect(
+        documentService.signDocument(mockFile, 'John Doe', '', '001/2025')
+      ).rejects.toThrow('Document title is required');
     });
 
     it('should validate file type is PDF', async () => {
       const txtFile = new File(['test'], 'test.txt', { type: 'text/plain' });
       
       await expect(
-        documentService.signDocument(txtFile, 'John Doe', '001/2025')
+        documentService.signDocument(txtFile, 'John Doe', 'Test Document', '001/2025')
       ).rejects.toThrow('Only PDF files are supported');
     });
 
@@ -77,14 +83,14 @@ describe('DocumentService', () => {
       });
       
       await expect(
-        documentService.signDocument(largeFile, 'John Doe', '001/2025')
+        documentService.signDocument(largeFile, 'John Doe', 'Test Document', '001/2025')
       ).rejects.toThrow('File size must be less than 50MB');
     });
 
     it('should trim issuer name', async () => {
       mockApiClient.post.mockResolvedValue(mockResponse);
 
-  await documentService.signDocument(mockFile, '  John Doe  ', '001/2025');
+  await documentService.signDocument(mockFile, '  John Doe  ', '  Test Document  ', '001/2025');
 
   const formData = mockApiClient.post.mock.calls[0][1] as FormData;
   expect(formData.get('issuer')).toBe('John Doe');

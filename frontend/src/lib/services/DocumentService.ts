@@ -17,13 +17,16 @@ export class DocumentService {
   /**
    * Sign a PDF document with digital signature
    */
-  async signDocument(file: File, issuer: string, letterNumber: string): Promise<SignDocumentResponse> {
+  async signDocument(file: File, issuer: string, title: string, letterNumber: string): Promise<SignDocumentResponse> {
     // Validate input
     if (!file) {
       throw new Error('File is required');
     }
     if (!issuer.trim()) {
       throw new Error('Issuer name is required');
+    }
+    if (!title.trim()) {
+      throw new Error('Document title is required');
     }
     if (file.type !== 'application/pdf') {
       throw new Error('Only PDF files are supported');
@@ -39,7 +42,8 @@ export class DocumentService {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('issuer', issuer.trim());
-  formData.append('letter_number', letterNumber.trim());
+    formData.append('title', title.trim());
+    formData.append('letter_number', letterNumber.trim());
 
     return this.apiClient.post<SignDocumentResponse>('/documents/sign', formData);
   }

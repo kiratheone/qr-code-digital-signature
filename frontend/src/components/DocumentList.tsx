@@ -105,8 +105,19 @@ export function DocumentList({
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {document.filename}
                     </p>
+                    {document.title && (
+                      <p className="text-sm text-gray-700 truncate mt-1">
+                        {document.title}
+                      </p>
+                    )}
                     <div className="mt-1 flex items-center text-sm text-gray-500">
                       <span>Issued by {document.issuer}</span>
+                      {document.letter_number && (
+                        <>
+                          <span className="mx-2">•</span>
+                          <span>#{document.letter_number}</span>
+                        </>
+                      )}
                       <span className="mx-2">•</span>
                       <span>{formatDate(document.created_at)}</span>
                       <span className="mx-2">•</span>

@@ -55,6 +55,7 @@ func TestVerificationService_GetVerificationInfo(t *testing.T) {
 					UserID:       "user-123",
 					Filename:     "test.pdf",
 					Issuer:       "John Doe",
+					Title:        stringPtr("Test Document Title"),
 					LetterNumber: stringPtr("LN-123"),
 					CreatedAt:    time.Now(),
 					FileSize:     1024,
@@ -162,6 +163,7 @@ func TestVerificationService_VerifyDocument(t *testing.T) {
 					SignatureData: testSignatureJSON,
 					QRCodeData:    string(testQRCodeJSON),
 					Status:        "active",
+					Title:         stringPtr("Test Document Title"),
 					LetterNumber:  stringPtr("LN-123"),
 				}
 				docRepo.On("GetByID", mock.Anything, "doc-123").Return(document, nil)

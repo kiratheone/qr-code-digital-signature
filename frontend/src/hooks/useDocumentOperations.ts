@@ -48,8 +48,8 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
 
   // Mutation for signing documents
   const signDocumentMutation = useMutation({
-    mutationFn: ({ file, issuer, letterNumber }: { file: File; issuer: string; letterNumber: string }) =>
-      documentService.signDocument(file, issuer, letterNumber),
+    mutationFn: ({ file, issuer, title, letterNumber }: { file: File; issuer: string; title: string; letterNumber: string }) =>
+      documentService.signDocument(file, issuer, title, letterNumber),
     onSuccess: (data: SignDocumentResponse) => {
       // Invalidate and refetch documents list
       queryClient.invalidateQueries({ queryKey: documentKeys.lists() });
