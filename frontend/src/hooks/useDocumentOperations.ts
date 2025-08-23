@@ -44,6 +44,15 @@ export function useDocumentOperations(page: number = 1, perPage: number = 10) {
     queryKey: documentKeys.list(page, perPage),
     queryFn: () => documentService.getDocuments(page, perPage),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors (authentication required)
+      if (error?.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false, // Prevent aggressive refetching
+    refetchOnReconnect: false,   // Prevent aggressive refetching
   });
 
   // Mutation for signing documents

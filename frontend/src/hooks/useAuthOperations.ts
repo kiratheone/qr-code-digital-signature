@@ -57,13 +57,17 @@ export function useAuthOperations() {
     queryFn: () => authService.validateSession(),
     enabled: sessionQuery.data?.isAuthenticated || false,
     retry: (failureCount, error: any) => {
-      // Don't retry on 401 errors
+      // Don't retry on 401 errors (token expired/invalid)
       if (error?.status === 401) {
+        // Clear auth state on 401 errors
+        queryClient.removeQueries({ queryKey: authKeys.all });
         return false;
       }
       return failureCount < 2;
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Prevent aggressive refetching
+    refetchOnReconnect: false,   // Prevent aggressive refetching
   });
 
   // Mutation for login
@@ -140,11 +144,16 @@ export function useAuthOperations() {
   // Get current authentication state
   const authState = authService.getAuthState();
   const currentUser = validateSessionQuery.data || authState.user;
+  
+  // More robust authentication check
+  const hasValidSession = !validateSessionQuery.isError || 
+    (validateSessionQuery.error as any)?.status !== 401;
+  const isActuallyAuthenticated = authState.isAuthenticated && hasValidSession;
 
   return {
     // Authentication state
     user: currentUser,
-    isAuthenticated: authState.isAuthenticated && !validateSessionQuery.isError,
+    isAuthenticated: isActuallyAuthenticated,
     token: authState.token,
     
     // Loading states

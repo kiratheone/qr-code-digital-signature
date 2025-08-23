@@ -78,6 +78,29 @@ export class ApiClient {
   }
 
   /**
+   * Handle authentication errors by clearing token and redirecting
+   */
+  private handleAuthenticationError(): void {
+    // Clear token from API client
+    this.token = null;
+    
+    // Clear from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      
+      // Clear cookie
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      
+      // Redirect to login if not already there
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/register') {
+        window.location.href = '/login';
+      }
+    }
+  }
+
+  /**
    * Core request method with error handling
    */
   private async request<T>(method: string, endpoint: string, data?: any): Promise<T> {
@@ -129,6 +152,11 @@ export class ApiClient {
             code: 'HTTP_ERROR',
             message: response.statusText || 'Request failed',
           };
+        }
+
+        // Handle 401 errors by clearing token and redirecting to login
+        if (response.status === 401) {
+          this.handleAuthenticationError();
         }
 
         throw new ApiClientError(

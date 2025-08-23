@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value || 
                 request.headers.get('authorization')?.replace('Bearer ', '');
 
-  const isAuthenticated = !!token;
+  const isAuthenticated = !!token && isValidJWT(token);
 
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && authRoutes.includes(pathname)) {
@@ -28,10 +28,42 @@ export function middleware(request: NextRequest) {
 
   // Redirect unauthenticated users from protected routes
   if (!isAuthenticated && protectedRoutes.includes(pathname)) {
+    // Clear invalid token cookie if present
+    if (token && !isValidJWT(token)) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.set('auth_token', '', {
+        expires: new Date(0),
+        path: '/',
+      });
+      return response;
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return NextResponse.next();
+}
+
+/**
+ * Simple JWT validation - checks if token is well-formed and not expired
+ */
+function isValidJWT(token: string): boolean {
+  try {
+    // Basic JWT structure validation
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    // Decode payload to check expiration
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Check if token has expired
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const config = {

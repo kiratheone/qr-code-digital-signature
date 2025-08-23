@@ -26,7 +26,8 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push(redirectTo);
+      // Clear any stale data and redirect
+      router.replace(redirectTo);
     }
   }, [isAuthenticated, isLoading, router, redirectTo]);
 
