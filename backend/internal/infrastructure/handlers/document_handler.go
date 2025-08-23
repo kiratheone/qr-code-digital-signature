@@ -248,6 +248,9 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 			}
 			req.Status = sanitizedStatus
 		}
+	} else {
+		// Default to showing only active documents (hide deleted documents)
+		req.Status = "active"
 	}
 
 	// Get user info for logging
