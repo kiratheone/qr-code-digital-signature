@@ -106,8 +106,8 @@ export function DocumentUploadForm({
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="mb-6">
+    <div className="bg-white shadow rounded-lg p-4">
+      <div className="mb-4">
         <h2 className="text-lg font-medium text-gray-900">Sign PDF Document</h2>
         <p className="mt-1 text-sm text-gray-600">
           Upload a PDF document to create a digitally signed version with QR code verification.
@@ -121,60 +121,63 @@ export function DocumentUploadForm({
         showDetails={process.env.NODE_ENV === 'development'}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <FileInput
           label="PDF Document"
           onFileSelect={handleFileSelect}
           accept=".pdf"
           maxSize={50 * 1024 * 1024} // 50MB
           error={validateFile(file) || undefined}
-          helperText="Select a PDF file to digitally sign. Maximum file size: 50MB"
+          helperText="Click to upload or drag and drop PDF files up to 50MB"
           disabled={isLoading}
         />
 
-        <Input
-          label="Issuer Name"
-          type="text"
-          value={values.issuer}
-          onChange={(e) => handleChange('issuer', e.target.value)}
-          onBlur={() => handleBlur('issuer')}
-          placeholder="Enter your name or organization"
-          error={getFieldError('issuer') || undefined}
-          helperText="This will appear on the digital signature as the document issuer"
-          disabled={isLoading}
-          required
-        />
+        <div className="grid grid-cols-1 gap-4">
+          <Input
+            label="Issuer Name"
+            type="text"
+            value={values.issuer}
+            onChange={(e) => handleChange('issuer', e.target.value)}
+            onBlur={() => handleBlur('issuer')}
+            placeholder="Enter your name or organization"
+            error={getFieldError('issuer') || undefined}
+            helperText="This will appear on the digital signature as the document issuer"
+            disabled={isLoading}
+            required
+          />
 
-        <Input
-          label="Document Title"
-          type="text"
-          value={values.title}
-          onChange={(e) => handleChange('title', e.target.value)}
-          onBlur={() => handleBlur('title')}
-          placeholder="Enter document title"
-          error={getFieldError('title') || undefined}
-          helperText="Title of the document being signed"
-          disabled={isLoading}
-          required
-        />
+          <Input
+            label="Document Title"
+            type="text"
+            value={values.title}
+            onChange={(e) => handleChange('title', e.target.value)}
+            onBlur={() => handleBlur('title')}
+            placeholder="Enter document title"
+            error={getFieldError('title') || undefined}
+            helperText="Title of the document being signed"
+            disabled={isLoading}
+            required
+          />
 
-        <Input
-          label="Letter Number"
-          type="text"
-          value={values.letterNumber}
-          onChange={(e) => handleChange('letterNumber', e.target.value)}
-          onBlur={() => handleBlur('letterNumber')}
-          placeholder="Enter letter number (e.g., 001/2025)"
-          error={getFieldError('letterNumber') || undefined}
-          helperText="Document reference number for identification"
-          disabled={isLoading}
-          required
-        />
+          <Input
+            label="Letter Number"
+            type="text"
+            value={values.letterNumber}
+            onChange={(e) => handleChange('letterNumber', e.target.value)}
+            onBlur={() => handleBlur('letterNumber')}
+            placeholder="Enter letter number (e.g., 001/2025)"
+            error={getFieldError('letterNumber') || undefined}
+            helperText="Document reference number for identification"
+            disabled={isLoading}
+            required
+          />
+        </div>
 
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row justify-between gap-3">
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             onClick={handleReset}
             disabled={isLoading || (!file && !values.issuer && !values.title)}
           >
@@ -184,6 +187,7 @@ export function DocumentUploadForm({
           <Button
             type="submit"
             variant="primary"
+            size="sm"
             isLoading={isLoading}
             disabled={!file || !values.issuer.trim() || !values.title.trim() || !values.letterNumber.trim() || isLoading || hasFieldError('issuer') || hasFieldError('title') || hasFieldError('letterNumber') || !!validateFile(file)}
           >
@@ -192,7 +196,7 @@ export function DocumentUploadForm({
         </div>
       </form>
 
-      <div className="mt-6 text-xs text-gray-500">
+      <div className="mt-4 text-xs text-gray-500">
         <p>
           By signing this document, you confirm that you have the authority to digitally sign it.
           The signed document will include a QR code for verification purposes.
