@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"digital-signature-system/internal/config"
 	"digital-signature-system/internal/domain/entities"
 	"digital-signature-system/internal/domain/repositories"
 	"digital-signature-system/internal/infrastructure/crypto"
@@ -26,6 +27,7 @@ type PDFServiceInterface interface {
 	ValidatePDF(pdfData []byte) error
 	CalculateHash(pdfData []byte) ([]byte, error)
 	GenerateQRCode(data pdf.QRCodeData) ([]byte, error)
+	GenerateQRCodeWithCenterLabel(url string, label string, size int) ([]byte, error)
 	InjectQRCode(pdfData []byte, qrCodeData pdf.QRCodeData, position *pdf.QRPosition) ([]byte, error)
 	ReadPDFFromReader(reader io.Reader) ([]byte, error)
 }
@@ -35,6 +37,7 @@ type DocumentService struct {
 	documentRepo     repositories.DocumentRepository
 	signatureService SignatureServiceInterface
 	pdfService       PDFServiceInterface
+	config           *config.Config
 }
 
 // SignDocumentRequest represents the request to sign a document
@@ -76,11 +79,13 @@ func NewDocumentService(
 	documentRepo repositories.DocumentRepository,
 	signatureService SignatureServiceInterface,
 	pdfService PDFServiceInterface,
+	config *config.Config,
 ) *DocumentService {
 	return &DocumentService{
 		documentRepo:     documentRepo,
 		signatureService: signatureService,
 		pdfService:       pdfService,
+		config:           config,
 	}
 }
 
@@ -126,12 +131,6 @@ func (s *DocumentService) SignDocument(ctx context.Context, req *SignDocumentReq
 		Timestamp: document.CreatedAt.Unix(),
 	}
 
-	// Generate QR code
-	_, err = s.pdfService.GenerateQRCode(qrCodeData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate QR code: %w", err)
-	}
-
 	// Store QR code data as JSON
 	qrCodeJSON, err := json.Marshal(qrCodeData)
 	if err != nil {
@@ -144,9 +143,21 @@ func (s *DocumentService) SignDocument(ctx context.Context, req *SignDocumentReq
 		return nil, fmt.Errorf("failed to save document: %w", err)
 	}
 
-	// Update QR code data with the actual document ID
+	// Generate verification URL using config BaseURL
+	verifyURL := fmt.Sprintf("%s/verify/%s", s.config.BaseURL, document.ID)
+
+	// Generate QR code with center label (issuer name)
+	_, err = s.pdfService.GenerateQRCodeWithCenterLabel(verifyURL, req.Issuer, 256)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate QR code with center label: %w", err)
+	}
+
+	// Update QR code data with the actual document ID and verification URL
 	qrCodeData.DocID = document.ID
-	qrCodeJSON, _ = json.Marshal(qrCodeData)
+	qrCodeJSON, err = json.Marshal(qrCodeData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal QR code data: %w", err)
+	}
 	document.QRCodeData = string(qrCodeJSON)
 
 	// Update document with correct QR code data
@@ -283,16 +294,13 @@ func (s *DocumentService) GetQRCodeImage(ctx context.Context, userID, documentID
 		return nil, "", err
 	}
 
-	// Parse QR code data from document
-	var qrCodeData pdf.QRCodeData
-	if err := json.Unmarshal([]byte(document.QRCodeData), &qrCodeData); err != nil {
-		return nil, "", fmt.Errorf("failed to parse QR code data: %w", err)
-	}
+	// Generate verification URL using config BaseURL
+	verifyURL := fmt.Sprintf("%s/verify/%s", s.config.BaseURL, document.ID)
 
-	// Generate QR code image
-	qrCodeImage, err := s.pdfService.GenerateQRCode(qrCodeData)
+	// Generate QR code with issuer label in center
+	qrCodeImage, err := s.pdfService.GenerateQRCodeWithCenterLabel(verifyURL, document.Issuer, 256)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate QR code image: %w", err)
+		return nil, "", fmt.Errorf("failed to generate QR code image with center label: %w", err)
 	}
 
 	// Generate filename

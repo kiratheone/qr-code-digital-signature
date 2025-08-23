@@ -5,12 +5,19 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io"
 	"strings"
 
 	"github.com/skip2/go-qrcode"
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
 )
 
 const (
@@ -95,17 +102,17 @@ func (s *PDFService) GetPDFInfo(pdfData []byte) (*PDFInfo, error) {
 // ReadPDFFromReader reads PDF data from an io.Reader
 func (s *PDFService) ReadPDFFromReader(reader io.Reader) ([]byte, error) {
 	var buf bytes.Buffer
-	
+
 	// Limit the read to MaxPDFSize to prevent memory issues
 	limitedReader := io.LimitReader(reader, MaxPDFSize+1)
-	
+
 	_, err := buf.ReadFrom(limitedReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read PDF data: %w", err)
 	}
 
 	pdfData := buf.Bytes()
-	
+
 	// Check if the file exceeds the maximum size
 	if len(pdfData) > MaxPDFSize {
 		return nil, fmt.Errorf("PDF size exceeds maximum allowed size of %d bytes", MaxPDFSize)
@@ -129,6 +136,165 @@ func (s *PDFService) GenerateQRCode(data QRCodeData) ([]byte, error) {
 	}
 
 	return qrCode, nil
+}
+
+// GenerateQRCodeWithCenterLabel generates a QR code with a text label in the center
+func (s *PDFService) GenerateQRCodeWithCenterLabel(url string, label string, size int) ([]byte, error) {
+	if url == "" {
+		return nil, fmt.Errorf("URL is required")
+	}
+
+	if size <= 0 {
+		size = 256 // Default size
+	}
+
+	// Generate QR code with highest error correction to allow center modifications
+	qrCode, err := qrcode.New(url, qrcode.Highest) // Highest allows ~30% damage
+	if err != nil {
+		return nil, fmt.Errorf("failed to create QR code: %w", err)
+	}
+
+	qrCode.DisableBorder = false
+
+	// Get QR code as image
+	qrImage := qrCode.Image(size)
+
+	// If no label provided, return simple QR code
+	if label == "" {
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, qrImage); err != nil {
+			return nil, fmt.Errorf("failed to encode QR code: %w", err)
+		}
+		return buf.Bytes(), nil
+	}
+
+	// Convert to RGBA for modifications
+	bounds := qrImage.Bounds()
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, qrImage, bounds.Min, draw.Src)
+
+	// Add center label
+	if err := s.addCenterLabelToQR(rgba, label, size); err != nil {
+		return nil, fmt.Errorf("failed to add center label: %w", err)
+	}
+
+	// Encode final image
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, rgba); err != nil {
+		return nil, fmt.Errorf("failed to encode QR code with label: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// addCenterLabelToQR adds a text label in the center of the QR code
+func (s *PDFService) addCenterLabelToQR(img *image.RGBA, text string, qrSize int) error {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	// Calculate center area size (about 20% of QR code)
+	centerSize := qrSize / 5
+	centerX := width / 2
+	centerY := height / 2
+
+	// Create white background circle/rectangle for the label
+	labelBounds := image.Rect(
+		centerX-centerSize/2,
+		centerY-centerSize/2,
+		centerX+centerSize/2,
+		centerY+centerSize/2,
+	)
+
+	// Draw white background with border
+	s.drawRoundedRect(img, labelBounds, color.RGBA{255, 255, 255, 255}, color.RGBA{0, 0, 0, 255})
+
+	// Add text to center
+	if err := s.drawCenterText(img, text, labelBounds); err != nil {
+		return fmt.Errorf("failed to draw center text: %w", err)
+	}
+
+	return nil
+}
+
+// drawRoundedRect draws a rounded rectangle with background and border
+func (s *PDFService) drawRoundedRect(img *image.RGBA, bounds image.Rectangle, bgColor, borderColor color.RGBA) {
+	// For simplicity, draw a regular rectangle with rounded corners effect
+	// Draw background
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			// Simple rounded corners by skipping corner pixels
+			if (x == bounds.Min.X || x == bounds.Max.X-1) && (y == bounds.Min.Y || y == bounds.Max.Y-1) {
+				continue // Skip corner pixels for rounded effect
+			}
+			if x >= 0 && x < img.Bounds().Dx() && y >= 0 && y < img.Bounds().Dy() {
+				img.Set(x, y, bgColor)
+			}
+		}
+	}
+
+	// Draw border
+	for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		if x >= 0 && x < img.Bounds().Dx() {
+			if bounds.Min.Y >= 0 && bounds.Min.Y < img.Bounds().Dy() {
+				img.Set(x, bounds.Min.Y, borderColor) // Top border
+			}
+			if bounds.Max.Y-1 >= 0 && bounds.Max.Y-1 < img.Bounds().Dy() {
+				img.Set(x, bounds.Max.Y-1, borderColor) // Bottom border
+			}
+		}
+	}
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		if y >= 0 && y < img.Bounds().Dy() {
+			if bounds.Min.X >= 0 && bounds.Min.X < img.Bounds().Dx() {
+				img.Set(bounds.Min.X, y, borderColor) // Left border
+			}
+			if bounds.Max.X-1 >= 0 && bounds.Max.X-1 < img.Bounds().Dx() {
+				img.Set(bounds.Max.X-1, y, borderColor) // Right border
+			}
+		}
+	}
+}
+
+// drawCenterText draws text in the center of the given bounds
+func (s *PDFService) drawCenterText(img *image.RGBA, text string, bounds image.Rectangle) error {
+	// Use basic font for simplicity
+	face := basicfont.Face7x13
+
+	// Calculate text dimensions
+	textWidth := font.MeasureString(face, text)
+	textHeight := face.Metrics().Height
+
+	// Calculate center position
+	centerX := bounds.Min.X + bounds.Dx()/2
+	centerY := bounds.Min.Y + bounds.Dy()/2
+
+	// Starting position for text (center it)
+	x := centerX - textWidth.Ceil()/2
+	y := centerY + textHeight.Ceil()/4 // Adjust for baseline
+
+	// Draw text
+	point := fixed.Point26_6{
+		X: fixed.I(x),
+		Y: fixed.I(y),
+	}
+
+	// Create a font drawer
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(color.RGBA{0, 0, 0, 255}), // Black text
+		Face: face,
+		Dot:  point,
+	}
+
+	// Truncate text if too long
+	maxChars := bounds.Dx() / 8 // Rough estimation
+	if len(text) > maxChars {
+		text = text[:maxChars-3] + "..."
+	}
+
+	d.DrawString(text)
+	return nil
 }
 
 // InjectQRCode injects a QR code into the PDF at the specified position
@@ -242,10 +408,10 @@ type QRCodeData struct {
 
 // QRPosition defines where to place the QR code on the page
 type QRPosition struct {
-	X      float64 `json:"x"`       // X coordinate (points from left)
-	Y      float64 `json:"y"`       // Y coordinate (points from bottom)
-	Width  float64 `json:"width"`   // QR code width in points
-	Height float64 `json:"height"`  // QR code height in points
+	X      float64 `json:"x"`      // X coordinate (points from left)
+	Y      float64 `json:"y"`      // Y coordinate (points from bottom)
+	Width  float64 `json:"width"`  // QR code width in points
+	Height float64 `json:"height"` // QR code height in points
 }
 
 // DefaultQRPosition returns the default position for QR code (bottom right of last page)

@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useVerificationFlow } from '@/hooks';
@@ -40,6 +40,22 @@ export default function VerifyDocumentPage() {
     hasVerificationResult,
     canVerify,
   } = useVerificationFlow(documentId);
+
+  // Update document title based on document info
+  useEffect(() => {
+    if (hasDocumentInfo && documentInfo?.title) {
+      document.title = `Verify: ${documentInfo.title} | Digital Signature System`;
+    } else if (hasDocumentInfo && documentInfo?.filename) {
+      document.title = `Verify: ${documentInfo.filename} | Digital Signature System`;
+    } else {
+      document.title = 'Document Verification | Digital Signature System';
+    }
+
+    // Cleanup function to reset title when component unmounts
+    return () => {
+      document.title = 'Digital Signature System';
+    };
+  }, [hasDocumentInfo, documentInfo]);
 
   // Handle document verification
   const handleDocumentVerify = (file: File) => {

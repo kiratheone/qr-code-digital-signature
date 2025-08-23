@@ -31,7 +31,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	if cfg.Environment == "development" {
 		logLevel = logging.DEBUG
 	}
-	
+
 	if err := logging.Initialize("logs", logLevel); err != nil {
 		panic("Failed to initialize logging: " + err.Error())
 	}
@@ -65,7 +65,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, sessionRepo, cfg.JWTSecret)
-	documentService := services.NewDocumentService(documentRepo, signatureService, pdfService)
+	documentService := services.NewDocumentService(documentRepo, signatureService, pdfService, cfg)
 	verificationService := services.NewVerificationService(documentRepo, verificationLogRepo, signatureService, pdfService, documentService)
 
 	// Initialize handlers and middleware
@@ -146,7 +146,7 @@ func (s *Server) setupRoutes() {
 			documents := protected.Group("/documents")
 			{
 				// Add file validation for document signing (50MB max, PDF only)
-				documents.POST("/sign", 
+				documents.POST("/sign",
 					s.authMiddleware.FileValidation(50<<20, []string{"application/pdf"}),
 					s.documentHandler.SignDocument)
 				documents.GET("/", s.documentHandler.GetDocuments)
@@ -155,7 +155,7 @@ func (s *Server) setupRoutes() {
 				documents.GET("/:id/download", s.documentHandler.DownloadSignedPDF)
 				documents.DELETE("/:id", s.documentHandler.DeleteDocument)
 			}
-			
+
 			// Add direct route without trailing slash to avoid redirects
 			protected.GET("/documents", s.documentHandler.GetDocuments)
 		}
@@ -165,7 +165,7 @@ func (s *Server) setupRoutes() {
 		{
 			verify.GET("/:docId", s.verificationHandler.GetVerificationInfo)
 			// Add file validation for document verification (50MB max, PDF only)
-			verify.POST("/:docId/upload", 
+			verify.POST("/:docId/upload",
 				s.authMiddleware.FileValidation(50<<20, []string{"application/pdf"}),
 				s.verificationHandler.VerifyDocument)
 			verify.GET("/:docId/history", s.verificationHandler.GetVerificationHistory)

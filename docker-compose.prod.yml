@@ -32,6 +32,7 @@ services:
       - "${PORT:-8112}:${PORT:-8112}"
     environment:
       - PORT=${PORT:-8112}
+      - APP_BASE_URL=${APP_BASE_URL}
       - DB_HOST=qds-postgres
       - DB_PORT=5432
       - DB_NAME=${DB_NAME}

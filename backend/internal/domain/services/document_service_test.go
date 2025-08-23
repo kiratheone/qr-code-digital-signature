@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"digital-signature-system/internal/config"
 	"digital-signature-system/internal/domain/entities"
 	"digital-signature-system/internal/domain/repositories"
 	"digital-signature-system/internal/infrastructure/crypto"
@@ -92,6 +93,11 @@ func (m *MockPDFService) GenerateQRCode(data pdf.QRCodeData) ([]byte, error) {
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+func (m *MockPDFService) GenerateQRCodeWithCenterLabel(url string, label string, size int) ([]byte, error) {
+	args := m.Called(url, label, size)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
 func (m *MockPDFService) InjectQRCode(pdfData []byte, qrCodeData pdf.QRCodeData, position *pdf.QRPosition) ([]byte, error) {
 	args := m.Called(pdfData, qrCodeData, position)
 	return args.Get(0).([]byte), args.Error(1)
@@ -131,8 +137,8 @@ func TestDocumentService_SignDocument(t *testing.T) {
 					Algorithm: "RSA-PSS-SHA256",
 				}, nil)
 
-				// QR code generation
-				pdfService.On("GenerateQRCode", mock.AnythingOfType("pdf.QRCodeData")).Return([]byte("qr-code-image"), nil)
+				// QR code generation with center label
+				pdfService.On("GenerateQRCodeWithCenterLabel", mock.AnythingOfType("string"), mock.AnythingOfType("string"), 256).Return([]byte("qr-code-image"), nil)
 
 				// Document creation and update
 				docRepo.On("Create", mock.Anything, mock.AnythingOfType("*entities.Document")).Return(nil)
@@ -192,6 +198,9 @@ func TestDocumentService_SignDocument(t *testing.T) {
 				documentRepo:     mockDocRepo,
 				signatureService: mockSigService,
 				pdfService:       mockPDFService,
+				config: &config.Config{
+					BaseURL: "http://localhost:3000",
+				},
 			}
 
 			// Execute

@@ -72,6 +72,12 @@ export function VerificationForm({
         <div className="bg-gray-50 rounded-lg p-4">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Original Document Information</h3>
           <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+            {documentInfo.title && (
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-gray-500">Document Title</dt>
+                <dd className="mt-1 text-sm text-gray-900 font-medium">{documentInfo.title}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-sm font-medium text-gray-500">Filename</dt>
               <dd className="mt-1 text-sm text-gray-900">{documentInfo.filename}</dd>

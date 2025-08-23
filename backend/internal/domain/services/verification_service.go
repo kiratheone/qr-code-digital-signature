@@ -32,6 +32,7 @@ type VerificationInfo struct {
 	DocumentID   string    `json:"document_id"`
 	Filename     string    `json:"filename"`
 	Issuer       string    `json:"issuer"`
+	Title        *string   `json:"title,omitempty"`
 	LetterNumber *string   `json:"letter_number,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	FileSize     int64     `json:"file_size"`
@@ -67,6 +68,7 @@ type VerificationDetails struct {
 	SignatureValid bool    `json:"signature_valid"`
 	OriginalHash   string  `json:"original_hash"`
 	UploadedHash   string  `json:"uploaded_hash"`
+	Title          *string `json:"title,omitempty"`
 	LetterNumber   *string `json:"letter_number,omitempty"`
 	Error          string  `json:"error,omitempty"`
 }
@@ -117,6 +119,7 @@ func (s *VerificationService) GetVerificationInfo(ctx context.Context, documentI
 		DocumentID:   document.ID,
 		Filename:     document.Filename,
 		Issuer:       document.Issuer,
+		Title:        document.Title,
 		LetterNumber: document.LetterNumber,
 		CreatedAt:    document.CreatedAt,
 		FileSize:     document.FileSize,
@@ -212,6 +215,7 @@ func (s *VerificationService) VerifyDocument(ctx context.Context, req *Verificat
 		SignatureValid: result.SignatureValid,
 		OriginalHash:   document.DocumentHash,
 		UploadedHash:   uploadedHashStr,
+		Title:          document.Title,
 		LetterNumber:   document.LetterNumber,
 	}
 
